@@ -78,7 +78,6 @@ pipeline {
     }
     
     import io.jenkins.plugins.checks.api.ChecksStatus
-    
     post {
         success {
             publishChecks name: 'Jenkins', status: ChecksStatus.COMPLETED
