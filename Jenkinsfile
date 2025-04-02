@@ -36,7 +36,7 @@ pipeline {
                     sh 'ls -lah'
                     
                     // Di chuyển vào thư mục chứa source code nếu cần
-                    sh 'cd spring-petclinic-microservices && ./mvnw test'
+                    sh './mvnw test'
                 }
             }
             post {
