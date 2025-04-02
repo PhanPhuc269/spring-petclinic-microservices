@@ -31,9 +31,12 @@ pipeline {
         stage('Test') {
             when { expression { env.SERVICE_CHANGED != "" } }
             steps {
-                dir("spring-petclinic-microservices") {
-                    sh 'ls -l'
-                    sh './mvnw test'
+                script {
+                    // Kiểm tra nội dung thư mục trước khi chạy
+                    sh 'ls -lah'
+                    
+                    // Di chuyển vào thư mục chứa source code nếu cần
+                    sh 'cd spring-petclinic-microservices && ./mvnw test'
                 }
             }
             post {
