@@ -79,7 +79,7 @@ pipeline {
     
   post {
         always {
-            githubCheck notify: true
+            githubCheck context: 'Build', conclusion: 'SUCCESS'
         }
     }
 }
