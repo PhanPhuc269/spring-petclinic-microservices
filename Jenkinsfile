@@ -31,9 +31,8 @@ pipeline {
         stage('Test') {
             when { expression { env.SERVICE_CHANGED != "" } }
             steps {
-                dir("spring-petclinic-microservices/${env.SERVICE_CHANGED}") {
-                    sh 'chmod +x ../mvnw'  // Đảm bảo `mvnw` có quyền thực thi
-                    sh '../mvnw test'
+                dir("spring-petclinic-microservices") {
+                    sh './mvnw test'
                 }
             }
             post {
