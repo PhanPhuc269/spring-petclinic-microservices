@@ -71,7 +71,7 @@ pipeline {
             when { expression { env.SERVICE_CHANGED != "" } }
             steps {
                 dir("spring-petclinic-microservices/${env.SERVICE_CHANGED}") {
-                    sh '../mvnw package'
+                    sh './mvnw package'
                 }
             }
         }
