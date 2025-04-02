@@ -77,19 +77,9 @@ pipeline {
         }
     }
     
-    post {
+  post {
         always {
-            step([
-                $class: 'GitHubCommitStatusSetter',
-                context: 'ci/jenkins/build',
-                statusResultSource: [
-                    $class: 'ConditionalStatusResultSource',
-                    results: [
-                        [$class: 'AnyBuildResult', state: 'SUCCESS', message: 'Build passed'],
-                        [$class: 'AnyBuildResult', state: 'FAILURE', message: 'Build failed']
-                    ]
-                ]
-            ])
+            githubCheck notify: true
         }
     }
 }
