@@ -7,45 +7,44 @@ pipeline {
         stage('Checkout') {
             steps {
                 script {
+                    // Lấy danh sách file đã thay đổi
                     def changes = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
                     echo "Changed files:\n${changes}"
+                    
+                    // Xác định service nào cần build
                     if (changes.contains("customers-service/")) {
-                        env.SERVICE_CHANGED = "customers-service"
+                        SERVICE_CHANGED = "customers-service"
                     } else if (changes.contains("vets-service/")) {
-                        env.SERVICE_CHANGED = "vets-service"
+                        SERVICE_CHANGED = "vets-service"
                     } else if (changes.contains("visit-service/")) {
-                        env.SERVICE_CHANGED = "visit-service"
+                        SERVICE_CHANGED = "visit-service"
                     } else {
                         echo "No relevant changes detected, skipping build."
                         currentBuild.result = 'ABORTED'
                         return
                     }
-                    echo "Service to build: ${env.SERVICE_CHANGED}"
+                    echo "Service to build: ${SERVICE_CHANGED}"
                 }
             }
         }
-
-        stage('Check mvnw') {
+        
+        stage('Check Current Directory') {
             steps {
                 script {
-                    sh 'ls -l mvnw' // Kiểm tra quyền và tồn tại của file mvnw
+                    // Kiểm tra thư mục hiện tại
+                    sh 'pwd'
                 }
             }
         }
-
-        stage('Set execute permission for mvnw') {
-            steps {
-                script {
-                    sh 'chmod +x mvnw' // Cấp quyền thực thi cho mvnw
-                }
-            }
-        }
-
+        
         stage('Test') {
-            when { expression { env.SERVICE_CHANGED != "" } }
+            when { expression { SERVICE_CHANGED != "" } }
             steps {
-                dir("${env.SERVICE_CHANGED}") {
-                    sh './mvnw test' // Chạy test
+                dir("${SERVICE_CHANGED}") {
+                    // Kiểm tra xem mvnw có thể chạy được không
+                    sh './mvnw --version'
+                    // Chạy test
+                    sh 'sh ./mvnw test' // Sử dụng sh để gọi mvnw
                 }
             }
             post {
@@ -57,12 +56,12 @@ pipeline {
                 }
             }
         }
-
+        
         stage('Coverage Check') {
-            when { expression { env.SERVICE_CHANGED != "" } }
+            when { expression { SERVICE_CHANGED != "" } }
             steps {
                 script {
-                    def coverage = sh(script: "grep -oP '(?<=coverage: )\\d+' ${env.SERVICE_CHANGED}/target/site/jacoco/index.html | head -1", returnStdout: true).trim()
+                    def coverage = sh(script: "grep -oP '(?<=coverage: )\\d+' ${SERVICE_CHANGED}/target/site/jacoco/index.html | head -1", returnStdout: true).trim()
                     if (coverage.toInteger() < 70) {
                         error "Coverage is ${coverage}%, below required threshold (70%)"
                     }
@@ -70,17 +69,17 @@ pipeline {
                 }
             }
         }
-
+        
         stage('Build') {
-            when { expression { env.SERVICE_CHANGED != "" } }
+            when { expression { SERVICE_CHANGED != "" } }
             steps {
-                dir("${env.SERVICE_CHANGED}") {
-                    sh './mvnw package' // Build service
+                dir("${SERVICE_CHANGED}") {
+                    sh 'sh ./mvnw package' // Build service
                 }
             }
         }
     }
-
+    
     post {
         always {
             junit '**/target/surefire-reports/*.xml' // Upload test results
