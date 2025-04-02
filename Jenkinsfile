@@ -32,6 +32,7 @@ pipeline {
             when { expression { env.SERVICE_CHANGED != "" } }
             steps {
                 dir("spring-petclinic-microservices") {
+                    sh 'ls -l'
                     sh './mvnw test'
                 }
             }
