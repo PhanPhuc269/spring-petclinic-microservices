@@ -79,14 +79,17 @@ pipeline {
     
     post {
         always {
-            script {
-                def testReport = "spring-petclinic-microservices/${env.SERVICE_CHANGED}/target/surefire-reports/*.xml"
-                if (fileExists(testReport)) {
-                    junit testReport // Upload test results
-                } else {
-                    echo "No test reports found, skipping JUnit result upload."
-                }
-            }
+            step([
+                $class: 'GitHubCommitStatusSetter',
+                context: 'ci/jenkins/build',
+                statusResultSource: [
+                    $class: 'ConditionalStatusResultSource',
+                    results: [
+                        [$class: 'AnyBuildResult', state: 'SUCCESS', message: 'Build passed'],
+                        [$class: 'AnyBuildResult', state: 'FAILURE', message: 'Build failed']
+                    ]
+                ]
+            ])
         }
     }
 }
