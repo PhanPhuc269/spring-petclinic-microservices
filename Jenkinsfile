@@ -70,7 +70,7 @@ pipeline {
         stage('Build') {
             when { expression { env.SERVICE_CHANGED != "" } }
             steps {
-                dir("spring-petclinic-microservices/${env.SERVICE_CHANGED}") {
+                script {
                     sh './mvnw package'
                 }
             }
