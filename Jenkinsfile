@@ -77,12 +77,15 @@ pipeline {
         }
     }
     
-  post {
+    import io.jenkins.plugins.checks.api.ChecksStatus
+    
+    post {
         success {
-            publishChecks name: 'Jenkins', status: 'SUCCESS'
+            publishChecks name: 'Jenkins', status: ChecksStatus.COMPLETED
         }
         failure {
-            publishChecks name: 'Jenkins', status: 'FAILURE'
+            publishChecks name: 'Jenkins', status: ChecksStatus.COMPLETED
         }
     }
+
 }
