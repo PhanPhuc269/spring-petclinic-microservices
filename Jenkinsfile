@@ -1,17 +1,14 @@
 pipeline {
     agent any
     environment {
-        SERVICE_CHANGED = ""  // Biến để kiểm tra service nào thay đổi
+        SERVICE_CHANGED = "" // Biến để kiểm tra service nào thay đổi
     }
     stages {
         stage('Checkout') {
             steps {
                 script {
-                    // Lấy danh sách file đã thay đổi
                     def changes = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
                     echo "Changed files:\n${changes}"
-                    
-                    // Xác định service nào cần build
                     if (changes.contains("customers-service/")) {
                         env.SERVICE_CHANGED = "customers-service"
                     } else if (changes.contains("vets-service/")) {
@@ -27,7 +24,23 @@ pipeline {
                 }
             }
         }
-        
+
+        stage('Check mvnw') {
+            steps {
+                script {
+                    sh 'ls -l mvnw' // Kiểm tra quyền và tồn tại của file mvnw
+                }
+            }
+        }
+
+        stage('Set execute permission for mvnw') {
+            steps {
+                script {
+                    sh 'chmod +x mvnw' // Cấp quyền thực thi cho mvnw
+                }
+            }
+        }
+
         stage('Test') {
             when { expression { env.SERVICE_CHANGED != "" } }
             steps {
@@ -44,7 +57,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Coverage Check') {
             when { expression { env.SERVICE_CHANGED != "" } }
             steps {
@@ -57,7 +70,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Build') {
             when { expression { env.SERVICE_CHANGED != "" } }
             steps {
@@ -67,7 +80,7 @@ pipeline {
             }
         }
     }
-    
+
     post {
         always {
             junit '**/target/surefire-reports/*.xml' // Upload test results
