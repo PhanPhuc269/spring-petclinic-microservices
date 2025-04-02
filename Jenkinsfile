@@ -84,7 +84,7 @@ pipeline {
                 if (fileExists(testReport)) {
                     junit testReport // Upload test results
                 } else {
-                    echo "⚠️ No test reports found, skipping JUnit result upload."
+                    echo "No test reports found, skipping JUnit result upload."
                 }
             }
         }
