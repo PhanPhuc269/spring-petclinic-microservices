@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        SERVICE_CHANGED = "" // Biến để kiểm tra service nào thay đổi
+        SERVICE_CHANGED = ""  // Biến để kiểm tra service nào thay đổi
     }
     stages {
         stage('Checkout') {
@@ -13,25 +13,25 @@ pipeline {
                     
                     // Xác định service nào cần build
                     if (changes.contains("customers-service/")) {
-                        SERVICE_CHANGED = "customers-service"
+                        env.SERVICE_CHANGED = "customers-service"
                     } else if (changes.contains("vets-service/")) {
-                        SERVICE_CHANGED = "vets-service"
+                        env.SERVICE_CHANGED = "vets-service"
                     } else if (changes.contains("visit-service/")) {
-                        SERVICE_CHANGED = "visit-service"
+                        env.SERVICE_CHANGED = "visit-service"
                     } else {
                         echo "No relevant changes detected, skipping build."
                         currentBuild.result = 'ABORTED'
                         return
                     }
-                    echo "Service to build: ${SERVICE_CHANGED}"
+                    echo "Service to build: ${env.SERVICE_CHANGED}"
                 }
             }
         }
         
         stage('Test') {
-            when { expression { SERVICE_CHANGED != "" } }
+            when { expression { env.SERVICE_CHANGED != "" } }
             steps {
-                dir("${SERVICE_CHANGED}") {
+                dir("${env.SERVICE_CHANGED}") {
                     sh './mvnw test' // Chạy test
                 }
             }
@@ -46,10 +46,10 @@ pipeline {
         }
         
         stage('Coverage Check') {
-            when { expression { SERVICE_CHANGED != "" } }
+            when { expression { env.SERVICE_CHANGED != "" } }
             steps {
                 script {
-                    def coverage = sh(script: "grep -oP '(?<=coverage: )\\d+' ${SERVICE_CHANGED}/target/site/jacoco/index.html | head -1", returnStdout: true).trim()
+                    def coverage = sh(script: "grep -oP '(?<=coverage: )\\d+' ${env.SERVICE_CHANGED}/target/site/jacoco/index.html | head -1", returnStdout: true).trim()
                     if (coverage.toInteger() < 70) {
                         error "Coverage is ${coverage}%, below required threshold (70%)"
                     }
@@ -59,9 +59,9 @@ pipeline {
         }
         
         stage('Build') {
-            when { expression { SERVICE_CHANGED != "" } }
+            when { expression { env.SERVICE_CHANGED != "" } }
             steps {
-                dir("${SERVICE_CHANGED}") {
+                dir("${env.SERVICE_CHANGED}") {
                     sh './mvnw package' // Build service
                 }
             }
