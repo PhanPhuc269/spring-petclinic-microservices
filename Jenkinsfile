@@ -78,8 +78,11 @@ pipeline {
     }
     
   post {
-        always {
-            publishChecks name: 'GitHub Check', detailsURL: 'https://github.com/PhanPhuc269/spring-petclinic-microservices', summary: 'Build completed'
+        success {
+            publishChecks name: 'Jenkins', status: 'SUCCESS'
+        }
+        failure {
+            publishChecks name: 'Jenkins', status: 'FAILURE'
         }
     }
 }
