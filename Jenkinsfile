@@ -116,4 +116,4 @@ pipeline {
             echo "Pipeline bị dừng (ABORTED)."
         }
     }
-}
+} 
