@@ -1,76 +1,119 @@
+@Library('github-checks') _  // Chỉ cần nếu dùng publishChecks (có thể bỏ nếu không dùng)
+
+import io.jenkins.plugins.checks.api.ChecksStatus
+import io.jenkins.plugins.checks.api.ChecksConclusion
+
 pipeline {
     agent any
-    environment {
-        SERVICE_CHANGED = "" // Biến để kiểm tra service nào thay đổi
+
+    tools {
+        maven 'Maven 3.8.8'
+        jdk 'Java 17'
     }
+
+    environment {
+        MAVEN_OPTS = "-Dmaven.test.failure.ignore=false"
+    }
+
+    options {
+        timestamps()
+        skipDefaultCheckout(false)
+    }
+
     stages {
         stage('Checkout') {
             steps {
+                checkout scm
+            }
+        }
+
+        stage('Detect Changed Service') {
+            steps {
                 script {
-                    // Lấy danh sách file đã thay đổi
-                    def changes = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
+                    def changes = sh(script: 'git diff --name-only HEAD~1', returnStdout: true).trim()
                     echo "Changed files:\n${changes}"
-                    
-                    // Xác định service nào cần build
-                    if (changes.contains("customers-service/")) {
-                        SERVICE_CHANGED = "customers-service"
-                    } else if (changes.contains("vets-service/")) {
-                        SERVICE_CHANGED = "vets-service"
-                    } else if (changes.contains("visit-service/")) {
-                        SERVICE_CHANGED = "visit-service"
-                    } else {
-                        echo "No relevant changes detected, skipping build."
+
+                    env.SERVICE_CHANGED = ""
+
+                    if (changes.contains("vets-service/")) {
+                        env.SERVICE_CHANGED = "vets-service"
+                    } else if (changes.contains("customers-service/")) {
+                        env.SERVICE_CHANGED = "customers-service"
+                    } else if (changes.contains("visits-service/")) {
+                        env.SERVICE_CHANGED = "visits-service"
+                    }
+
+                    if (env.SERVICE_CHANGED == "") {
+                        echo "Không có service nào thay đổi. Dừng pipeline."
                         currentBuild.result = 'ABORTED'
                         return
                     }
-                    echo "Service to build: ${SERVICE_CHANGED}"
+
+                    echo "Service bị thay đổi: ${env.SERVICE_CHANGED}"
                 }
             }
         }
-        
+
         stage('Test') {
-            when { expression { SERVICE_CHANGED != "" } }
+            when {
+                expression { env.SERVICE_CHANGED != "" }
+            }
             steps {
-                dir("${SERVICE_CHANGED}") {
-                    sh './mvnw test' // Chạy test
+                dir("${env.SERVICE_CHANGED}") {
+                    sh '../mvnw test'
                 }
             }
             post {
-                success {
-                    echo "Tests passed successfully."
-                }
-                failure {
-                    error "Tests failed!"
+                always {
+                    junit "${env.SERVICE_CHANGED}/target/surefire-reports/*.xml"
+                    cobertura coberturaReportFile: "${env.SERVICE_CHANGED}/target/site/cobertura/coverage.xml"
                 }
             }
         }
-        
+
         stage('Coverage Check') {
-            when { expression { SERVICE_CHANGED != "" } }
+            when {
+                expression { env.SERVICE_CHANGED != "" }
+            }
             steps {
                 script {
-                    def coverage = sh(script: "grep -oP '(?<=coverage: )\\d+' ${SERVICE_CHANGED}/target/site/jacoco/index.html | head -1", returnStdout: true).trim()
+                    def coverageHtml = "${env.SERVICE_CHANGED}/target/site/jacoco/index.html"
+                    def coverage = sh(script: "grep -oP '(?<=coverage: )\\d+' ${coverageHtml} | head -1", returnStdout: true).trim()
+
+                    echo "Coverage: ${coverage}%"
+
                     if (coverage.toInteger() < 70) {
-                        error "Coverage is ${coverage}%, below required threshold (70%)"
+                        error "Coverage dưới 70%. Không cho phép merge."
                     }
-                    echo "Coverage is ${coverage}% - OK!"
                 }
             }
         }
-        
+
         stage('Build') {
-            when { expression { SERVICE_CHANGED != "" } }
+            when {
+                expression { env.SERVICE_CHANGED != "" }
+            }
             steps {
-                dir("${SERVICE_CHANGED}") {
-                    sh './mvnw package' // Build service
+                dir("${env.SERVICE_CHANGED}") {
+                    sh '../mvnw package'
                 }
             }
         }
     }
-    
+
     post {
-        always {
-            junit '**/target/surefire-reports/*.xml' // Upload test results
+        success {
+            publishChecks name: 'Jenkins CI',
+                status: ChecksStatus.COMPLETED,
+                conclusion: ChecksConclusion.SUCCESS
+        }
+        failure {
+            publishChecks name: 'Jenkins CI',
+                status: ChecksStatus.COMPLETED,
+                conclusion: ChecksConclusion.FAILURE
+        }
+        aborted {
+            echo "Pipeline bị dừng (ABORTED)."
         }
     }
 }
