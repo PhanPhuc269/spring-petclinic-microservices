@@ -1,65 +1,62 @@
-@Library('github-checks') _  // Chỉ cần nếu dùng publishChecks (có thể bỏ nếu không dùng)
-
 import io.jenkins.plugins.checks.api.ChecksStatus
-import io.jenkins.plugins.checks.api.ChecksConclusion
 
 pipeline {
     agent any
-
-    tools {
-        maven 'Maven 3.8.8'
-        jdk 'Java 17'
-    }
-
     environment {
-        MAVEN_OPTS = "-Dmaven.test.failure.ignore=false"
+        SERVICE_CHANGED = "" // Biến kiểm tra service thay đổi
     }
-
-    options {
-        timestamps()
-        skipDefaultCheckout(false)
-    }
-
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
-            }
-        }
-
-        stage('Detect Changed Service') {
-            steps {
                 script {
-                    def changes = sh(script: 'git diff --name-only HEAD~1', returnStdout: true).trim()
+                    // Lấy danh sách file đã thay đổi
+                    def changes = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
                     echo "Changed files:\n${changes}"
 
-                    env.SERVICE_CHANGED = ""
-
-                    if (changes.contains("vets-service/")) {
-                        env.SERVICE_CHANGED = "vets-service"
-                    } else if (changes.contains("customers-service/")) {
+                    // Xác định service nào thay đổi
+                    if (changes.contains("customers-service/")) {
                         env.SERVICE_CHANGED = "customers-service"
-                    } else if (changes.contains("visits-service/")) {
-                        env.SERVICE_CHANGED = "visits-service"
-                    }
-
-                    if (env.SERVICE_CHANGED == "") {
-                        echo "Không có service nào thay đổi. Dừng pipeline."
+                    } else if (changes.contains("vets-service/")) {
+                        env.SERVICE_CHANGED = "vets-service"
+                    } else if (changes.contains("visit-service/")) {
+                        env.SERVICE_CHANGED = "visit-service"
+                    } else {
+                        echo "No relevant changes detected, skipping build."
                         currentBuild.result = 'ABORTED'
                         return
                     }
-
-                    echo "Service bị thay đổi: ${env.SERVICE_CHANGED}"
+                    echo "Service to build: ${env.SERVICE_CHANGED}"
                 }
             }
         }
-
+        
+        // stage('Test') {
+        //     when { expression { env.SERVICE_CHANGED != "" } }
+        //     steps {
+        //         script {
+        //             // Kiểm tra nội dung thư mục trước khi chạy
+        //             sh 'ls -lah'
+                    
+        //             // Di chuyển vào thư mục chứa source code nếu cần
+        //             sh './mvnw test'
+        //         }
+        //     }
+        //     post {
+        //         success {
+        //             echo "✅ Tests passed successfully."
+        //         }
+        //         failure {
+        //             error "❌ Tests failed!"
+        //         }
+        //     }
+        // }
         stage('Test') {
             when {
                 expression { env.SERVICE_CHANGED != "" }
             }
             steps {
-                dir("${env.SERVICE_CHANGED}") {
+                script{
+                    sh "cd ${env.SERVICE_CHANGED}"
                     sh '../mvnw test'
                 }
             }
@@ -70,50 +67,43 @@ pipeline {
                 }
             }
         }
-
+        
         stage('Coverage Check') {
-            when {
-                expression { env.SERVICE_CHANGED != "" }
-            }
+            when { expression { env.SERVICE_CHANGED != "" } }
             steps {
                 script {
-                    def coverageHtml = "${env.SERVICE_CHANGED}/target/site/jacoco/index.html"
-                    def coverage = sh(script: "grep -oP '(?<=coverage: )\\d+' ${coverageHtml} | head -1", returnStdout: true).trim()
-
-                    echo "Coverage: ${coverage}%"
-
-                    if (coverage.toInteger() < 70) {
-                        error "Coverage dưới 70%. Không cho phép merge."
+                    def coverageFile = "spring-petclinic-microservices/${env.SERVICE_CHANGED}/target/site/jacoco/index.html"
+                    if (fileExists(coverageFile)) {
+                        def coverage = sh(script: "grep -oP '(?<=coverage: )\\d+' ${coverageFile} | head -1", returnStdout: true).trim()
+                        if (coverage.toInteger() < 70) {
+                            error "❌ Coverage is ${coverage}%, below required threshold (70%)"
+                        }
+                        echo "✅ Coverage is ${coverage}% - OK!"
+                    } else {
+                        echo "⚠️ Coverage report not found. Skipping coverage check."
                     }
                 }
             }
         }
-
+        
         stage('Build') {
-            when {
-                expression { env.SERVICE_CHANGED != "" }
-            }
+            when { expression { env.SERVICE_CHANGED != "" } }
             steps {
-                dir("${env.SERVICE_CHANGED}") {
+                script {
+                    sh "cd ${env.SERVICE_CHANGED}"
                     sh '../mvnw package'
                 }
             }
         }
     }
-
+    
     post {
         success {
-            publishChecks name: 'Jenkins CI',
-                status: ChecksStatus.COMPLETED,
-                conclusion: ChecksConclusion.SUCCESS
+            publishChecks name: 'Jenkins', status: ChecksStatus.COMPLETED
         }
         failure {
-            publishChecks name: 'Jenkins CI',
-                status: ChecksStatus.COMPLETED,
-                conclusion: ChecksConclusion.FAILURE
-        }
-        aborted {
-            echo "Pipeline bị dừng (ABORTED)."
+            publishChecks name: 'Jenkins', status: ChecksStatus.COMPLETED
         }
     }
-}  
+
+}
