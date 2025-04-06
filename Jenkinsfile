@@ -61,7 +61,7 @@ pipeline {
                                 junit "${svc}/target/surefire-reports/*.xml"
                                 cobertura coberturaReportFile: "${svc}/target/site/cobertura/coverage.xml"
                             } else {
-                                echo "⚠️ No test reports found for ${svc}."
+                                echo "No test reports found for ${svc}."
                             }
                         }
                     }
