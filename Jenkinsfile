@@ -77,8 +77,15 @@ pipeline {
             }
             post {
                 always {
-                    junit "${globalServiceChanged}/target/surefire-reports/*.xml"
-                    cobertura coberturaReportFile: "${globalServiceChanged}/target/site/cobertura/coverage.xml"
+                    script {
+                        def reportPath = "${env.SERVICE_CHANGED}/target/surefire-reports"
+                        if (fileExists(reportPath)) {
+                            junit "${globalServiceChanged}/target/surefire-reports/*.xml"
+                            cobertura coberturaReportFile: "${globalServiceChanged}/target/site/cobertura/coverage.xml"
+                        } else {
+                            echo "⚠️ No test reports found, skipping junit publish."
+                        }
+                    }
                 }
             }
         }
@@ -104,8 +111,7 @@ pipeline {
         stage('Build') {
             when { expression { globalServiceChanged?.trim() } }
             steps {
-                script {
-                    sh "cd ${globalServiceChanged}"
+                dir ("${globalServiceChanged}") {
                     sh '../mvnw package'
                 }
             }
