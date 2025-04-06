@@ -30,7 +30,7 @@ pipeline {
                         env.SERVICE_CHANGED = "spring-petclinic-vets-service"
                     } else if (changes.contains("spring-petclinic-visits-service/")) {
                         env.SERVICE_CHANGED = "spring-petclinic-visits-service"
-                    else {
+                    } else {
                         echo "No relevant changes detected, skipping build."
                         currentBuild.result = 'ABORTED'
                         return
