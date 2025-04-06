@@ -34,7 +34,7 @@ pipeline {
                         currentBuild.result = 'ABORTED'
                         return
                     }
-
+                    echo "Service changed: ${service}"
                     // Gán ra biến môi trường từ biến cục bộ
                     env.SERVICE_CHANGED = service
                     echo "Service to build: ${env.SERVICE_CHANGED}"
