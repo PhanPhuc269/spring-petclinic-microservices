@@ -1,4 +1,4 @@
-    import io.jenkins.plugins.checks.api.ChecksStatus
+import io.jenkins.plugins.checks.api.ChecksStatus
 
 pipeline {
     agent any
@@ -30,23 +30,40 @@ pipeline {
             }
         }
         
-        stage('Test') {
-            when { expression { env.SERVICE_CHANGED != "" } }
-            steps {
-                script {
-                    // Kiểm tra nội dung thư mục trước khi chạy
-                    sh 'ls -lah'
+        // stage('Test') {
+        //     when { expression { env.SERVICE_CHANGED != "" } }
+        //     steps {
+        //         script {
+        //             // Kiểm tra nội dung thư mục trước khi chạy
+        //             sh 'ls -lah'
                     
-                    // Di chuyển vào thư mục chứa source code nếu cần
-                    sh './mvnw test'
+        //             // Di chuyển vào thư mục chứa source code nếu cần
+        //             sh './mvnw test'
+        //         }
+        //     }
+        //     post {
+        //         success {
+        //             echo "✅ Tests passed successfully."
+        //         }
+        //         failure {
+        //             error "❌ Tests failed!"
+        //         }
+        //     }
+        // }
+        stage('Test') {
+            when {
+                expression { env.SERVICE_CHANGED != "" }
+            }
+            steps {
+                script{
+                    sh "cd ${env.SERVICE_CHANGED}"
+                    sh '../mvnw test'
                 }
             }
             post {
-                success {
-                    echo "✅ Tests passed successfully."
-                }
-                failure {
-                    error "❌ Tests failed!"
+                always {
+                    junit "${env.SERVICE_CHANGED}/target/surefire-reports/*.xml"
+                    cobertura coberturaReportFile: "${env.SERVICE_CHANGED}/target/site/cobertura/coverage.xml"
                 }
             }
         }
@@ -73,7 +90,8 @@ pipeline {
             when { expression { env.SERVICE_CHANGED != "" } }
             steps {
                 script {
-                    sh './mvnw package'
+                    sh "cd ${env.SERVICE_CHANGED}"
+                    sh '../mvnw package'
                 }
             }
         }
