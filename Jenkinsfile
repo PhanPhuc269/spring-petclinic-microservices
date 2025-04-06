@@ -39,6 +39,59 @@ pipeline {
             }
         }
 
+        // stage('Test') {
+        //     when {
+        //         expression { globalServiceChanged && globalServiceChanged.size() > 0 }
+        //     }
+        //     steps {
+        //         script {
+        //             globalServiceChanged.each { svc ->
+        //                 dir("${svc}") {
+        //                     sh '../mvnw test'
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     post {
+        //         always {
+        //             script {
+        //                 globalServiceChanged.each { svc ->
+        //                     def reportPath = "${svc}/target/surefire-reports"
+        //                     if (fileExists(reportPath)) {
+        //                         junit "${svc}/target/surefire-reports/*.xml"
+        //                         cobertura coberturaReportFile: "${svc}/target/site/cobertura/coverage.xml"
+        //                     } else {
+        //                         echo "No test reports found for ${svc}."
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+
+        // stage('Coverage Check') {
+        //     when {
+        //         expression { globalServiceChanged && globalServiceChanged.size() > 0 }
+        //     }
+        //     steps {
+        //         script {
+        //             globalServiceChanged.each { svc ->
+        //                 def coverageFile = "${svc}/target/site/jacoco/index.html"
+        //                 if (fileExists(coverageFile)) {
+        //                     def coverage = sh(script: "grep -oP '(?<=coverage: )\\d+' ${coverageFile} | head -1", returnStdout: true).trim()
+        //                     if (coverage.toInteger() < 70) {
+        //                         error "❌ ${svc}: Coverage is ${coverage}%, below required threshold (70%)"
+        //                     }
+        //                     echo "✅ ${svc}: Coverage is ${coverage}% - OK!"
+        //                 } else {
+        //                     echo "⚠️ ${svc}: Coverage report not found."
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+
+
         stage('Test') {
             when {
                 expression { globalServiceChanged && globalServiceChanged.size() > 0 }
@@ -59,7 +112,14 @@ pipeline {
                             def reportPath = "${svc}/target/surefire-reports"
                             if (fileExists(reportPath)) {
                                 junit "${svc}/target/surefire-reports/*.xml"
-                                cobertura coberturaReportFile: "${svc}/target/site/cobertura/coverage.xml"
+                                
+                                // Xuất báo cáo JaCoCo (tạo báo cáo về độ phủ)
+                                def jacocoReportFile = "${svc}/target/site/jacoco/jacoco.xml"
+                                if (fileExists(jacocoReportFile)) {
+                                    jacoco execPattern: "${svc}/target/jacoco.exec", classPattern: '**/classes', sourcePattern: '**/src/main/java', inclusionPattern: '**/*.java', exclusionPattern: '**/*Test.java'
+                                } else {
+                                    echo "No JaCoCo report found for ${svc}."
+                                }
                             } else {
                                 echo "No test reports found for ${svc}."
                             }
