@@ -14,13 +14,23 @@ pipeline {
                     echo "Changed files:\n${changes}"
 
                     // Xác định service nào thay đổi
-                    if (changes.contains("customers-service/")) {
-                        env.SERVICE_CHANGED = "customers-service"
-                    } else if (changes.contains("vets-service/")) {
-                        env.SERVICE_CHANGED = "vets-service"
-                    } else if (changes.contains("visit-service/")) {
-                        env.SERVICE_CHANGED = "visit-service"
-                    } else {
+                    if (changes.contains("spring-petclinic-admin-server/")) {
+                        env.SERVICE_CHANGED = "spring-petclinic-admin-server"
+                    } else if (changes.contains("spring-petclinic-api-gateway/")) {
+                        env.SERVICE_CHANGED = "spring-petclinic-api-gateway"
+                    } else if (changes.contains("spring-petclinic-config-server/")) {
+                        env.SERVICE_CHANGED = "spring-petclinic-config-server"
+                    } else if (changes.contains("spring-petclinic-customers-service/")) {
+                        env.SERVICE_CHANGED = "spring-petclinic-customers-service"
+                    } else if (changes.contains("spring-petclinic-discovery-server/")) {
+                        env.SERVICE_CHANGED = "spring-petclinic-discovery-server"
+                    } else if (changes.contains("spring-petclinic-genai-service/")) {
+                        env.SERVICE_CHANGED = "spring-petclinic-genai-service"
+                    } else if (changes.contains("spring-petclinic-vets-service/")) {
+                        env.SERVICE_CHANGED = "spring-petclinic-vets-service"
+                    } else if (changes.contains("spring-petclinic-visits-service/")) {
+                        env.SERVICE_CHANGED = "spring-petclinic-visits-service"
+                    else {
                         echo "No relevant changes detected, skipping build."
                         currentBuild.result = 'ABORTED'
                         return
