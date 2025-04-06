@@ -118,13 +118,13 @@ pipeline {
         }
     }
     
-    post {
-        success {
-            publishChecks name: 'Jenkins', status: ChecksStatus.COMPLETED
-        }
-        failure {
-            publishChecks name: 'Jenkins', status: ChecksStatus.COMPLETED
-        }
-    }
+    // post {
+    //     success {
+    //         publishChecks name: 'Jenkins', status: ChecksStatus.COMPLETED
+    //     }
+    //     failure {
+    //         publishChecks name: 'Jenkins', status: ChecksStatus.COMPLETED
+    //     }
+    // }
 
 }
