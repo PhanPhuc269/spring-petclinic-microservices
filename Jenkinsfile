@@ -9,34 +9,37 @@ pipeline {
         stage('Checkout') {
             steps {
                 script {
-                    // Lấy danh sách file đã thay đổi
                     def changes = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
                     echo "Changed files:\n${changes}"
 
-                    // Xác định service nào thay đổi
+                    def service = ""
                     if (changes.contains("spring-petclinic-admin-server/")) {
-                        env.SERVICE_CHANGED = "spring-petclinic-admin-server"
+                        service = "spring-petclinic-admin-server"
                     } else if (changes.contains("spring-petclinic-api-gateway/")) {
-                        env.SERVICE_CHANGED = "spring-petclinic-api-gateway"
+                        service = "spring-petclinic-api-gateway"
                     } else if (changes.contains("spring-petclinic-config-server/")) {
-                        env.SERVICE_CHANGED = "spring-petclinic-config-server"
+                        service = "spring-petclinic-config-server"
                     } else if (changes.contains("spring-petclinic-customers-service/")) {
-                        env.SERVICE_CHANGED = "spring-petclinic-customers-service"
+                        service = "spring-petclinic-customers-service"
                     } else if (changes.contains("spring-petclinic-discovery-server/")) {
-                        env.SERVICE_CHANGED = "spring-petclinic-discovery-server"
+                        service = "spring-petclinic-discovery-server"
                     } else if (changes.contains("spring-petclinic-genai-service/")) {
-                        env.SERVICE_CHANGED = "spring-petclinic-genai-service"
+                        service = "spring-petclinic-genai-service"
                     } else if (changes.contains("spring-petclinic-vets-service/")) {
-                        env.SERVICE_CHANGED = "spring-petclinic-vets-service"
+                        service = "spring-petclinic-vets-service"
                     } else if (changes.contains("spring-petclinic-visits-service/")) {
-                        env.SERVICE_CHANGED = "spring-petclinic-visits-service"
+                        service = "spring-petclinic-visits-service"
                     } else {
                         echo "No relevant changes detected, skipping build."
                         currentBuild.result = 'ABORTED'
                         return
                     }
+
+                    // Gán ra biến môi trường từ biến cục bộ
+                    env.SERVICE_CHANGED = service
                     echo "Service to build: ${env.SERVICE_CHANGED}"
                 }
+
             }
         }
         
