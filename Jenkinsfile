@@ -1,10 +1,7 @@
 import io.jenkins.plugins.checks.api.ChecksStatus
-
+def globalServiceChanged = ""
 pipeline {
     agent any
-    environment {
-        SERVICE_CHANGED = "" // Biến kiểm tra service thay đổi
-    }
     stages {
         stage('Checkout') {
             steps {
@@ -36,15 +33,15 @@ pipeline {
                     }
                     echo "Service changed: ${service}"
                     // Gán ra biến môi trường từ biến cục bộ
-                    env.SERVICE_CHANGED = service
-                    echo "Service to build: ${env.SERVICE_CHANGED}"
+                    globalServiceChanged = service
+                    echo "Service to build: ${globalServiceChanged}"
                 }
 
             }
         }
         
         // stage('Test') {
-        //     when { expression { env.SERVICE_CHANGED != "" } }
+        //     when { expression { globalServiceChanged != "" } }
         //     steps {
         //         script {
         //             // Kiểm tra nội dung thư mục trước khi chạy
@@ -65,27 +62,27 @@ pipeline {
         // }
         stage('Test') {
             when {
-                expression { env.SERVICE_CHANGED?.trim() }
+                expression { globalServiceChanged?.trim() }
             }
             steps {
                 script{
-                    sh "cd ${env.SERVICE_CHANGED}"
+                    sh "cd ${globalServiceChanged}"
                     sh '../mvnw test'
                 }
             }
             post {
                 always {
-                    junit "${env.SERVICE_CHANGED}/target/surefire-reports/*.xml"
-                    cobertura coberturaReportFile: "${env.SERVICE_CHANGED}/target/site/cobertura/coverage.xml"
+                    junit "${globalServiceChanged}/target/surefire-reports/*.xml"
+                    cobertura coberturaReportFile: "${globalServiceChanged}/target/site/cobertura/coverage.xml"
                 }
             }
         }
         
         stage('Coverage Check') {
-            when { expression { env.SERVICE_CHANGED?.trim() } }
+            when { expression { globalServiceChanged?.trim() } }
             steps {
                 script {
-                    def coverageFile = "spring-petclinic-microservices/${env.SERVICE_CHANGED}/target/site/jacoco/index.html"
+                    def coverageFile = "spring-petclinic-microservices/${globalServiceChanged}/target/site/jacoco/index.html"
                     if (fileExists(coverageFile)) {
                         def coverage = sh(script: "grep -oP '(?<=coverage: )\\d+' ${coverageFile} | head -1", returnStdout: true).trim()
                         if (coverage.toInteger() < 70) {
@@ -100,10 +97,10 @@ pipeline {
         }
         
         stage('Build') {
-            when { expression { env.SERVICE_CHANGED?.trim() } }
+            when { expression { globalServiceChanged?.trim() } }
             steps {
                 script {
-                    sh "cd ${env.SERVICE_CHANGED}"
+                    sh "cd ${globalServiceChanged}"
                     sh '../mvnw package'
                 }
             }
