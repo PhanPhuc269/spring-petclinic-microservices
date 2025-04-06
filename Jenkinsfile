@@ -176,4 +176,16 @@ pipeline {
     //         publishChecks name: 'Jenkins', status: ChecksStatus.COMPLETED
     //     }
     // }
+    post {
+        always {
+            // ✅ Upload kết quả test
+            junit '**/target/surefire-reports/*.xml'
+            
+            // ✅ Upload coverage (nếu đã cài JaCoCo plugin)
+            jacoco execPattern: '**/target/jacoco.exec',
+                   classPattern: '**/target/classes',
+                   sourcePattern: '**/src/main/java',
+                   inclusionPattern: '**/*.class'
+        }
+    }
 }
