@@ -52,7 +52,7 @@ pipeline {
         // }
         stage('Test') {
             when {
-                expression { env.SERVICE_CHANGED != "" }
+                expression { env.SERVICE_CHANGED?.trim() }
             }
             steps {
                 script{
@@ -69,7 +69,7 @@ pipeline {
         }
         
         stage('Coverage Check') {
-            when { expression { env.SERVICE_CHANGED != "" } }
+            when { expression { env.SERVICE_CHANGED?.trim() } }
             steps {
                 script {
                     def coverageFile = "spring-petclinic-microservices/${env.SERVICE_CHANGED}/target/site/jacoco/index.html"
@@ -87,7 +87,7 @@ pipeline {
         }
         
         stage('Build') {
-            when { expression { env.SERVICE_CHANGED != "" } }
+            when { expression { env.SERVICE_CHANGED?.trim() } }
             steps {
                 script {
                     sh "cd ${env.SERVICE_CHANGED}"
