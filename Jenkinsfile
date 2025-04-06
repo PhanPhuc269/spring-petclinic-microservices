@@ -100,7 +100,7 @@ pipeline {
                 script {
                     globalServiceChanged.each { svc ->
                         dir("${svc}") {
-                            sh '../mvnw test'
+                            sh '../mvnw clean test jacoco:report'
                         }
                     }
                 }
