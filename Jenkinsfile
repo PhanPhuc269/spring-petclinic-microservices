@@ -64,9 +64,14 @@ pipeline {
             when {
                 expression { globalServiceChanged?.trim() }
             }
+            // steps {
+            //     script{
+            //         sh "cd ./${globalServiceChanged}/"
+            //         sh '../mvnw test'
+            //     }
+            // }
             steps {
-                script{
-                    sh "cd ${globalServiceChanged}"
+                dir("${globalServiceChanged}") {
                     sh '../mvnw test'
                 }
             }
