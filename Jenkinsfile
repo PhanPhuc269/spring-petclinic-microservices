@@ -137,6 +137,7 @@ pipeline {
                 script {
                     globalServiceChanged.each { svc ->
                         def coverageFile = "${svc}/target/site/jacoco/index.html"
+                        sh "cat ${coverageFile}"
                         if (fileExists(coverageFile)) {
                             def coverage = sh(script: "grep -oP '(?<=coverage: )\\d+' ${coverageFile} | head -1", returnStdout: true).trim()
                             if (coverage.toInteger() < 70) {
