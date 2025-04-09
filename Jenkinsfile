@@ -130,44 +130,48 @@ pipeline {
         // }
 
         stage('Test & Coverage') {
-            when {
-                expression { globalServiceChanged && globalServiceChanged.size() > 0 }
-            }
-            steps {
-                script {
-                    def stagesMap = [:]
-                    globalServiceChanged.each { svc ->
-                        stagesMap["Test ${svc}"] = {
-                            node('build') {
-                                echo "Running ${svc} on node: ${env.NODE_NAME}"
-                                dir("${svc}") {
-                                    // Sửa đường dẫn để chạy mvnw từ root
-                                    sh "${WORKSPACE}/mvnw clean test jacoco:report"
-                                }
-                                def reportPath = "${svc}/target/surefire-reports"
-                                if (fileExists(reportPath)) {
-                                    junit "${svc}/target/surefire-reports/*.xml"
-                                    def jacocoReportFile = "${svc}/target/site/jacoco/jacoco.xml"
-                                    if (fileExists(jacocoReportFile)) {
-                                        jacoco execPattern: "${svc}/target/jacoco.exec", 
-                                               classPattern: '**/classes', 
-                                               sourcePattern: '**/src/main/java', 
-                                               inclusionPattern: '**/*.java', 
-                                               exclusionPattern: '**/*Test.java'
-                                    } else {
-                                        echo "No JaCoCo report found for ${svc}."
+                    when {
+                        expression { globalServiceChanged && globalServiceChanged.size() > 0 }
+                    }
+                    steps {
+                        script {
+                            def stagesMap = [:]
+                            globalServiceChanged.each { svc ->
+                                stagesMap["Test ${svc}"] = {
+                                    node('build') {
+                                        echo "Running ${svc} on node: ${env.NODE_NAME}"
+                                        // Checkout lại để đảm bảo mvnw có mặt trên agent
+                                        checkout scm
+                                        // Kiểm tra file mvnw
+                                        if (!fileExists("${WORKSPACE}/mvnw")) {
+                                            error "Maven wrapper (mvnw) not found in ${WORKSPACE} on ${env.NODE_NAME}"
+                                        }
+                                        dir("${svc}") {
+                                            sh "${WORKSPACE}/mvnw clean test jacoco:report"
+                                        }
+                                        def reportPath = "${svc}/target/surefire-reports"
+                                        if (fileExists(reportPath)) {
+                                            junit "${svc}/target/surefire-reports/*.xml"
+                                            def jacocoReportFile = "${svc}/target/site/jacoco/jacoco.xml"
+                                            if (fileExists(jacocoReportFile)) {
+                                                jacoco execPattern: "${svc}/target/jacoco.exec", 
+                                                    classPattern: '**/classes', 
+                                                    sourcePattern: '**/src/main/java', 
+                                                    inclusionPattern: '**/*.java', 
+                                                    exclusionPattern: '**/*Test.java'
+                                            } else {
+                                                echo "No JaCoCo report found for ${svc}."
+                                            }
+                                        } else {
+                                            echo "No test reports found for ${svc}."
+                                        }
                                     }
-                                } else {
-                                    echo "No test reports found for ${svc}."
                                 }
                             }
+                            parallel stagesMap
                         }
                     }
-                    parallel stagesMap
                 }
-            }
-        }
-
 
         stage('Coverage Check') {
             agent { label 'master' }  // Chạy trên master
