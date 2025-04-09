@@ -2,7 +2,7 @@ import io.jenkins.plugins.checks.api.ChecksStatus
 def globalServiceChanged = []
 
 pipeline {
-    agent { label 'master' } 
+    agent none
     stages {
         stage('Checkout') {
             agent { label 'master' } 
