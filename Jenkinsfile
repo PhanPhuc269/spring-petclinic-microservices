@@ -136,39 +136,36 @@ pipeline {
             when {
                 expression { globalServiceChanged && globalServiceChanged.size() > 0 }
             }
-            parallel {
+            steps {
                 script {
+                    def stagesMap = [:]
                     globalServiceChanged.each { svc ->
-                        stage("Test ${svc}") {
-                            agent { label 'build' }  // ❗ Cho mỗi service chạy ở agent có label build
-                            steps {
+                        stagesMap["Test ${svc}"] = {
+                            node('build') {
                                 dir("${svc}") {
                                     sh '../mvnw clean test jacoco:report'
                                 }
-                            }
-                            post {
-                                always {
-                                    script {
-                                        def reportPath = "${svc}/target/surefire-reports"
-                                        if (fileExists(reportPath)) {
-                                            junit "${svc}/target/surefire-reports/*.xml"
-                                            def jacocoReportFile = "${svc}/target/site/jacoco/jacoco.xml"
-                                            if (fileExists(jacocoReportFile)) {
-                                                jacoco execPattern: "${svc}/target/jacoco.exec", classPattern: '**/classes', sourcePattern: '**/src/main/java', inclusionPattern: '**/*.java', exclusionPattern: '**/*Test.java'
-                                            } else {
-                                                echo "No JaCoCo report found for ${svc}."
-                                            }
-                                        } else {
-                                            echo "No test reports found for ${svc}."
-                                        }
+                                // post action
+                                def reportPath = "${svc}/target/surefire-reports"
+                                if (fileExists(reportPath)) {
+                                    junit "${svc}/target/surefire-reports/*.xml"
+                                    def jacocoReportFile = "${svc}/target/site/jacoco/jacoco.xml"
+                                    if (fileExists(jacocoReportFile)) {
+                                        jacoco execPattern: "${svc}/target/jacoco.exec", classPattern: '**/classes', sourcePattern: '**/src/main/java', inclusionPattern: '**/*.java', exclusionPattern: '**/*Test.java'
+                                    } else {
+                                        echo "No JaCoCo report found for ${svc}."
                                     }
+                                } else {
+                                    echo "No test reports found for ${svc}."
                                 }
                             }
                         }
                     }
+                    parallel stagesMap
                 }
             }
         }
+
 
         stage('Coverage Check') {
             agent { label 'build' }  // ❗ Chạy ở agent có label build
@@ -209,26 +206,27 @@ pipeline {
         //         }
         //     }
         // }
-
         stage('Build') {
             when {
                 expression { globalServiceChanged && globalServiceChanged.size() > 0 }
             }
-            parallel {
+            steps {
                 script {
+                    def stagesMap = [:]
                     globalServiceChanged.each { svc ->
-                        stage("Build ${svc}") {
-                            agent { label 'build' }
-                            steps {
+                        stagesMap["Build ${svc}"] = {
+                            node('build') {
                                 dir("${svc}") {
                                     sh '../mvnw package'
                                 }
                             }
                         }
                     }
+                    parallel stagesMap
                 }
             }
         }
+
     }
 
     // Có thể bật lại nếu bạn dùng GitHub Checks
