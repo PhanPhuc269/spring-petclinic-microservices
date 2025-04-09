@@ -3,9 +3,9 @@ def globalServiceChanged = []
 
 pipeline {
     agent any
-
     stages {
         stage('Checkout') {
+            agent { label 'master' } 
             steps {
                 script {
                     def changes = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
@@ -165,6 +165,7 @@ pipeline {
 
 
         stage('Coverage Check') {
+            agent { label 'master' }  // Chạy trên master
             when {
                 expression { globalServiceChanged && globalServiceChanged.size() > 0 }
             }
