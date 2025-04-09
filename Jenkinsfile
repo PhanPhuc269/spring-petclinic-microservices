@@ -6,6 +6,9 @@ pipeline {
 
     stages {
         stage('Checkout') {
+            agent {
+                label 'build'
+            } // Chạy ở agent có label 'build'
             steps {
                 script {
                     def changes = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
@@ -92,36 +95,74 @@ pipeline {
         // }
 
 
-        stage('Test') {
+        // stage('Test') {
+        //     when {
+        //         expression { globalServiceChanged && globalServiceChanged.size() > 0 }
+        //     }
+        //     steps {
+        //         script {
+        //             globalServiceChanged.each { svc ->
+        //                 dir("${svc}") {
+        //                     sh '../mvnw clean test jacoco:report'
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     post {
+        //         always {
+        //             script {
+        //                 globalServiceChanged.each { svc ->
+        //                     def reportPath = "${svc}/target/surefire-reports"
+        //                     if (fileExists(reportPath)) {
+        //                         junit "${svc}/target/surefire-reports/*.xml"
+                                
+        //                         // Xuất báo cáo JaCoCo (tạo báo cáo về độ phủ)
+        //                         def jacocoReportFile = "${svc}/target/site/jacoco/jacoco.xml"
+        //                         if (fileExists(jacocoReportFile)) {
+        //                             jacoco execPattern: "${svc}/target/jacoco.exec", classPattern: '**/classes', sourcePattern: '**/src/main/java', inclusionPattern: '**/*.java', exclusionPattern: '**/*Test.java'
+        //                         } else {
+        //                             echo "No JaCoCo report found for ${svc}."
+        //                         }
+        //                     } else {
+        //                         echo "No test reports found for ${svc}."
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+
+        stage('Test & Coverage') {
             when {
                 expression { globalServiceChanged && globalServiceChanged.size() > 0 }
             }
-            steps {
+            parallel {
                 script {
                     globalServiceChanged.each { svc ->
-                        dir("${svc}") {
-                            sh '../mvnw clean test jacoco:report'
-                        }
-                    }
-                }
-            }
-            post {
-                always {
-                    script {
-                        globalServiceChanged.each { svc ->
-                            def reportPath = "${svc}/target/surefire-reports"
-                            if (fileExists(reportPath)) {
-                                junit "${svc}/target/surefire-reports/*.xml"
-                                
-                                // Xuất báo cáo JaCoCo (tạo báo cáo về độ phủ)
-                                def jacocoReportFile = "${svc}/target/site/jacoco/jacoco.xml"
-                                if (fileExists(jacocoReportFile)) {
-                                    jacoco execPattern: "${svc}/target/jacoco.exec", classPattern: '**/classes', sourcePattern: '**/src/main/java', inclusionPattern: '**/*.java', exclusionPattern: '**/*Test.java'
-                                } else {
-                                    echo "No JaCoCo report found for ${svc}."
+                        stage("Test ${svc}") {
+                            agent { label 'build' }  // ❗ Cho mỗi service chạy ở agent có label build
+                            steps {
+                                dir("${svc}") {
+                                    sh '../mvnw clean test jacoco:report'
                                 }
-                            } else {
-                                echo "No test reports found for ${svc}."
+                            }
+                            post {
+                                always {
+                                    script {
+                                        def reportPath = "${svc}/target/surefire-reports"
+                                        if (fileExists(reportPath)) {
+                                            junit "${svc}/target/surefire-reports/*.xml"
+                                            def jacocoReportFile = "${svc}/target/site/jacoco/jacoco.xml"
+                                            if (fileExists(jacocoReportFile)) {
+                                                jacoco execPattern: "${svc}/target/jacoco.exec", classPattern: '**/classes', sourcePattern: '**/src/main/java', inclusionPattern: '**/*.java', exclusionPattern: '**/*Test.java'
+                                            } else {
+                                                echo "No JaCoCo report found for ${svc}."
+                                            }
+                                        } else {
+                                            echo "No test reports found for ${svc}."
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -130,6 +171,7 @@ pipeline {
         }
 
         stage('Coverage Check') {
+            agent { label 'build' }  // ❗ Chạy ở agent có label build
             when {
                 expression { globalServiceChanged && globalServiceChanged.size() > 0 }
             }
@@ -153,15 +195,35 @@ pipeline {
             }
         }
 
+        // stage('Build') {
+        //     when {
+        //         expression { globalServiceChanged && globalServiceChanged.size() > 0 }
+        //     }
+        //     steps {
+        //         script {
+        //             globalServiceChanged.each { svc ->
+        //                 dir("${svc}") {
+        //                     sh '../mvnw package'
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+
         stage('Build') {
             when {
                 expression { globalServiceChanged && globalServiceChanged.size() > 0 }
             }
-            steps {
+            parallel {
                 script {
                     globalServiceChanged.each { svc ->
-                        dir("${svc}") {
-                            sh '../mvnw package'
+                        stage("Build ${svc}") {
+                            agent { label 'build' }
+                            steps {
+                                dir("${svc}") {
+                                    sh '../mvnw package'
+                                }
+                            }
                         }
                     }
                 }
