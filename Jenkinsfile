@@ -139,16 +139,21 @@ pipeline {
                     globalServiceChanged.each { svc ->
                         stagesMap["Test ${svc}"] = {
                             node('build') {
+                                echo "Running ${svc} on node: ${env.NODE_NAME}"
                                 dir("${svc}") {
-                                    sh '../mvnw clean test jacoco:report'
+                                    // Sửa đường dẫn để chạy mvnw từ root
+                                    sh "${WORKSPACE}/mvnw clean test jacoco:report"
                                 }
-                                // post action
                                 def reportPath = "${svc}/target/surefire-reports"
                                 if (fileExists(reportPath)) {
                                     junit "${svc}/target/surefire-reports/*.xml"
                                     def jacocoReportFile = "${svc}/target/site/jacoco/jacoco.xml"
                                     if (fileExists(jacocoReportFile)) {
-                                        jacoco execPattern: "${svc}/target/jacoco.exec", classPattern: '**/classes', sourcePattern: '**/src/main/java', inclusionPattern: '**/*.java', exclusionPattern: '**/*Test.java'
+                                        jacoco execPattern: "${svc}/target/jacoco.exec", 
+                                               classPattern: '**/classes', 
+                                               sourcePattern: '**/src/main/java', 
+                                               inclusionPattern: '**/*.java', 
+                                               exclusionPattern: '**/*Test.java'
                                     } else {
                                         echo "No JaCoCo report found for ${svc}."
                                     }
