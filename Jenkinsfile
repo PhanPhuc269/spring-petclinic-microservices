@@ -2,7 +2,7 @@ import io.jenkins.plugins.checks.api.ChecksStatus
 def globalServiceChanged = []
 
 pipeline {
-    agent any
+    agent { label 'master' } 
     stages {
         stage('Checkout') {
             agent { label 'master' } 
@@ -135,22 +135,14 @@ pipeline {
             }
             steps {
                 script {
-                    // Lấy danh sách agent có label 'build' từ Jenkins
-                    def availableNodes = Jenkins.instance.nodes.findAll { it.getLabelString().contains('build') && it.toComputer().isOnline() }
-                    def nodeNames = availableNodes.collect { it.name }
-                    if (nodeNames.size() < 1) {
-                        error "No agents with label 'build' available!"
-                    }
-
                     def stagesMap = [:]
-                    def nodeIndex = 0
                     globalServiceChanged.each { svc ->
                         stagesMap["Test ${svc}"] = {
-                            node(nodeNames[nodeIndex % nodeNames.size()]) {  // Chọn agent luân phiên từ danh sách động
-                                echo "Running ${svc} on node: ${env.NODE_NAME}"
+                            node('build') {
                                 dir("${svc}") {
                                     sh '../mvnw clean test jacoco:report'
                                 }
+                                // post action
                                 def reportPath = "${svc}/target/surefire-reports"
                                 if (fileExists(reportPath)) {
                                     junit "${svc}/target/surefire-reports/*.xml"
@@ -165,12 +157,12 @@ pipeline {
                                 }
                             }
                         }
-                        nodeIndex++
                     }
                     parallel stagesMap
                 }
             }
         }
+
 
         stage('Coverage Check') {
             agent { label 'master' }  // Chạy trên master
