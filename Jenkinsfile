@@ -6,9 +6,6 @@ pipeline {
 
     stages {
         stage('Checkout') {
-            agent {
-                label 'build'
-            } // Chạy ở agent có label 'build'
             steps {
                 script {
                     def changes = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
@@ -168,7 +165,6 @@ pipeline {
 
 
         stage('Coverage Check') {
-            agent { label 'build' }  // ❗ Chạy ở agent có label build
             when {
                 expression { globalServiceChanged && globalServiceChanged.size() > 0 }
             }
