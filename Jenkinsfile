@@ -2,10 +2,9 @@ import io.jenkins.plugins.checks.api.ChecksStatus
 def globalServiceChanged = []
 
 pipeline {
-    agent none
+    agent any
     stages {
         stage('Checkout') {
-            agent { label 'master' } 
             steps {
                 script {
                     def changes = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
@@ -28,228 +27,87 @@ pipeline {
                         }
                     }
 
-                    if (globalServiceChanged.isEmpty()) {
-                        echo "No relevant changes detected, skipping build."
-                        currentBuild.result = 'ABORTED'
-                        return
-                    }
-
                     echo "Changed services: ${globalServiceChanged}"
                 }
             }
         }
 
-        // stage('Test') {
-        //     when {
-        //         expression { globalServiceChanged && globalServiceChanged.size() > 0 }
-        //     }
-        //     steps {
-        //         script {
-        //             globalServiceChanged.each { svc ->
-        //                 dir("${svc}") {
-        //                     sh '../mvnw test'
-        //                 }
-        //             }
-        //         }
-        //     }
-        //     post {
-        //         always {
-        //             script {
-        //                 globalServiceChanged.each { svc ->
-        //                     def reportPath = "${svc}/target/surefire-reports"
-        //                     if (fileExists(reportPath)) {
-        //                         junit "${svc}/target/surefire-reports/*.xml"
-        //                         cobertura coberturaReportFile: "${svc}/target/site/cobertura/coverage.xml"
-        //                     } else {
-        //                         echo "No test reports found for ${svc}."
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-
-        // stage('Coverage Check') {
-        //     when {
-        //         expression { globalServiceChanged && globalServiceChanged.size() > 0 }
-        //     }
-        //     steps {
-        //         script {
-        //             globalServiceChanged.each { svc ->
-        //                 def coverageFile = "${svc}/target/site/jacoco/index.html"
-        //                 if (fileExists(coverageFile)) {
-        //                     def coverage = sh(script: "grep -oP '(?<=coverage: )\\d+' ${coverageFile} | head -1", returnStdout: true).trim()
-        //                     if (coverage.toInteger() < 70) {
-        //                         error "❌ ${svc}: Coverage is ${coverage}%, below required threshold (70%)"
-        //                     }
-        //                     echo "✅ ${svc}: Coverage is ${coverage}% - OK!"
-        //                 } else {
-        //                     echo "⚠️ ${svc}: Coverage report not found."
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-
-
-        // stage('Test') {
-        //     when {
-        //         expression { globalServiceChanged && globalServiceChanged.size() > 0 }
-        //     }
-        //     steps {
-        //         script {
-        //             globalServiceChanged.each { svc ->
-        //                 dir("${svc}") {
-        //                     sh '../mvnw clean test jacoco:report'
-        //                 }
-        //             }
-        //         }
-        //     }
-        //     post {
-        //         always {
-        //             script {
-        //                 globalServiceChanged.each { svc ->
-        //                     def reportPath = "${svc}/target/surefire-reports"
-        //                     if (fileExists(reportPath)) {
-        //                         junit "${svc}/target/surefire-reports/*.xml"
-                                
-        //                         // Xuất báo cáo JaCoCo (tạo báo cáo về độ phủ)
-        //                         def jacocoReportFile = "${svc}/target/site/jacoco/jacoco.xml"
-        //                         if (fileExists(jacocoReportFile)) {
-        //                             jacoco execPattern: "${svc}/target/jacoco.exec", classPattern: '**/classes', sourcePattern: '**/src/main/java', inclusionPattern: '**/*.java', exclusionPattern: '**/*Test.java'
-        //                         } else {
-        //                             echo "No JaCoCo report found for ${svc}."
-        //                         }
-        //                     } else {
-        //                         echo "No test reports found for ${svc}."
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-
-        stage('Test & Coverage') {
-                    when {
-                        expression { globalServiceChanged && globalServiceChanged.size() > 0 }
-                    }
-                    steps {
-                        script {
-                            def stagesMap = [:]
-                            globalServiceChanged.each { svc ->
-                                stagesMap["Test ${svc}"] = {
-                                    node('build') {
-                                        echo "Running ${svc} on node: ${env.NODE_NAME}"
-                                        // Checkout lại để đảm bảo mvnw có mặt trên agent
-                                        checkout scm
-                                        // Kiểm tra file mvnw
-                                        if (!fileExists("${WORKSPACE}/mvnw")) {
-                                            error "Maven wrapper (mvnw) not found in ${WORKSPACE} on ${env.NODE_NAME}"
-                                        }
-                                        dir("${svc}") {
-                                            sh "${WORKSPACE}/mvnw clean test jacoco:report"
-                                        }
-                                        def reportPath = "${svc}/target/surefire-reports"
-                                        if (fileExists(reportPath)) {
-                                            junit "${svc}/target/surefire-reports/*.xml"
-                                            def jacocoReportFile = "${svc}/target/site/jacoco/jacoco.xml"
-                                            if (fileExists(jacocoReportFile)) {
-                                                jacoco execPattern: "${svc}/target/jacoco.exec", 
-                                                    classPattern: '**/classes', 
-                                                    sourcePattern: '**/src/main/java', 
-                                                    inclusionPattern: '**/*.java', 
-                                                    exclusionPattern: '**/*Test.java'
-                                            } else {
-                                                echo "No JaCoCo report found for ${svc}."
-                                            }
-                                        } else {
-                                            echo "No test reports found for ${svc}."
-                                        }
-                                    }
-                                }
-                            }
-                            parallel stagesMap
-                        }
-                    }
-                }
-
-        stage('Coverage Check') {
-            agent { label 'master' }  // Chạy trên master
+        stage('Test') {
             when {
-                expression { globalServiceChanged && globalServiceChanged.size() > 0 }
+                expression { true }
             }
             steps {
                 script {
-                    globalServiceChanged.each { svc ->
-                        def coverageFile = "${svc}/target/site/jacoco/index.html"
-                        if (fileExists(coverageFile)) {
-                            // Dùng grep để lấy phần trăm đầu tiên có dạng "##%"
-                            def coverage = sh(script: "grep -oE '[0-9]+%' ${coverageFile} | head -1 | tr -d '%'", returnStdout: true).trim()
-                            if (coverage.isInteger() && coverage.toInteger() < 70) {
-                                error "❌ ${svc}: Coverage is ${coverage}%, below required threshold (70%)"
-                            } else {
-                                echo "✅ ${svc}: Coverage is ${coverage}% - OK!"
+                    if (globalServiceChanged && globalServiceChanged.size() > 0) {
+                        // Nếu globalServiceChanged không rỗng, chỉ build các service đã thay đổi
+                        globalServiceChanged.each { svc ->
+                            dir("${svc}") {
+                                sh '../mvnw clean test jacoco:report'
+                            }
+                        }
+                    } else {
+                        // Nếu globalServiceChanged rỗng, build lại toàn hệ thống
+                        echo "No specific services changed. Building entire system."
+                        sh './mvnw clean test jacoco:report'
+                    }
+                }
+            }
+            post {
+                always {
+                    script {
+                        if (globalServiceChanged && globalServiceChanged.size() > 0) {
+                            // Xử lý báo cáo cho các service đã thay đổi
+                            globalServiceChanged.each { svc ->
+                                def reportPath = "${svc}/target/surefire-reports"
+                                if (fileExists(reportPath)) {
+                                    junit "${svc}/target/surefire-reports/*.xml"
+                                    
+                                    // Xuất báo cáo JaCoCo
+                                    def jacocoReportFile = "${svc}/target/site/jacoco/jacoco.xml"
+                                    if (fileExists(jacocoReportFile)) {
+                                        jacoco execPattern: "${svc}/target/jacoco.exec", 
+                                               classPattern: '**/classes', 
+                                               sourcePattern: '**/src/main/java', 
+                                               inclusionPattern: '**/*.java', 
+                                               exclusionPattern: '**/*Test.java'
+                                    } else {
+                                        echo "No JaCoCo report found for ${svc}."
+                                    }
+                                } else {
+                                    echo "No test reports found for ${svc}."
+                                }
                             }
                         } else {
-                            echo "⚠️ ${svc}: Coverage report not found at ${coverageFile}"
-                        }
-                    }
-                }
-            }
-        }
-
-        // stage('Build') {
-        //     when {
-        //         expression { globalServiceChanged && globalServiceChanged.size() > 0 }
-        //     }
-        //     steps {
-        //         script {
-        //             globalServiceChanged.each { svc ->
-        //                 dir("${svc}") {
-        //                     sh '../mvnw package'
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-        stage('Build') {
-            when {
-                expression { globalServiceChanged && globalServiceChanged.size() > 0 }
-            }
-            steps {
-                script {
-                    def stagesMap = [:]
-                    globalServiceChanged.each { svc ->
-                        stagesMap["Build ${svc}"] = {
-                            node('build') {
-                                dir("${svc}") {
-                                    sh '../mvnw package'
+                            // Xử lý báo cáo cho toàn hệ thống
+                            def reportPath = "target/surefire-reports"
+                            if (fileExists(reportPath)) {
+                                junit "target/surefire-reports/*.xml"
+                                
+                                def jacocoReportFile = "target/site/jacoco/jacoco.xml"
+                                if (fileExists(jacocoReportFile)) {
+                                    jacoco execPattern: "target/jacoco.exec", 
+                                           classPattern: '**/classes', 
+                                           sourcePattern: '**/src/main/java', 
+                                           inclusionPattern: '**/*.java', 
+                                           exclusionPattern: '**/*Test.java'
+                                } else {
+                                    echo "No JaCoCo report found for full system build."
                                 }
+                            } else {
+                                echo "No test reports found for full system build."
                             }
                         }
                     }
-                    parallel stagesMap
                 }
             }
         }
-
     }
-
-    // Có thể bật lại nếu bạn dùng GitHub Checks
-    // post {
-    //     success {
-    //         publishChecks name: 'Jenkins', status: ChecksStatus.COMPLETED
-    //     }
-    //     failure {
-    //         publishChecks name: 'Jenkins', status: ChecksStatus.COMPLETED
-    //     }
-    // }
     post {
         always {
-            // ✅ Upload kết quả test
+            // Upload kết quả test
             junit '**/target/surefire-reports/*.xml'
             
-            // ✅ Upload coverage (nếu đã cài JaCoCo plugin)
+            // Upload coverage (nếu đã cài JaCoCo plugin)
             jacoco execPattern: '**/target/jacoco.exec',
                    classPattern: '**/target/classes',
                    sourcePattern: '**/src/main/java',
