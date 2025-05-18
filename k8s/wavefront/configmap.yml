@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-wavefront
+  namespace: spring-petclinic
+data:
+  MANAGEMENT_METRICS_EXPORT_WAVEFRONT_ENABLED: "true"
+  MANAGEMENT_METRICS_EXPORT_WAVEFRONT_URI: "proxy://wavefront-proxy.wavefront.svc.cluster.local:2878"
+  WAVEFRONT_FREEMIUM_ACCOUNT: "false"
+  SPRING_ZIPKIN_ENABLED: "true"
+  SPRING_ZIPKIN_BASEURL: "http://wavefront-proxy.wavefront.svc.cluster.local:9411"
+  SPRING_SLEUTH_SAMPLER_PROBABILITY: "1.0"
+
+  # Don't forget to reuse the same K8s cluster name used by the Wavefront proxy.
+  WAVEFRONT_APPLICATION_CLUSTER: dev01
+
+  # You also need to create a secret in this namespace containing the Wavefront API token:
+  # $ kubectl -n spring-petclinic create secret generic app-wavefront --from-literal=MANAGEMENT_METRICS_EXPORT_WAVEFRONT_API-TOKEN=wavefront-api-token

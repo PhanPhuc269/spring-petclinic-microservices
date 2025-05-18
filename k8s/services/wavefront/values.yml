@@ -1,0 +1,15 @@
+# Wavefront Helm chart configuration values
+# Use these commands to deploy a Wavefront proxyto your K8s cluster:
+#  $ kubectl create ns wavefront
+#  $ helm upgrade wavefront wavefront/wavefront -f k8s/services/wavefront/values.yml --set wavefront.url=https://vmware.wavefront.com --set wavefront.token=wavefront-api-token --set clusterName=k8s-cluster-name -n wavefront --install --version 1.2.6
+
+wavefront:
+  url: https://vmware.wavefront.com
+  token: wavefront-api-token
+
+clusterName: k8s-cluster-name
+
+# Enable ZipKin support.
+proxy:
+  zipkinPort: 9411
+  traceSamplingRate: 1
