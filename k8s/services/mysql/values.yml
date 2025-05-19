@@ -20,3 +20,8 @@ replication:
   ## master deployment would be created
   ##
   enabled: false
+primary:
+  persistence:
+    enabled: true
+    storageClass: "standard"     # hoặc dùng `""` để dùng default nếu bạn không chắc tên
+    size: 1Gi
