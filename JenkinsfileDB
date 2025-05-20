@@ -1,0 +1,68 @@
+pipeline {
+  agent any
+
+  parameters {
+    string(name: 'NAMESPACE', defaultValue: 'dev-a', description: 'Namespace cho dev')
+    string(name: 'DOMAIN', defaultValue: 'dev-a.local', description: 'Tên miền cho ingress')
+
+    string(name: 'CONFIG_TAG', defaultValue: 'latest')
+    string(name: 'DISCOVERY_TAG', defaultValue: 'latest')
+    string(name: 'CUSTOMERS_TAG', defaultValue: 'latest')
+    string(name: 'VETS_TAG', defaultValue: 'latest')
+    string(name: 'VISITS_TAG', defaultValue: 'latest')
+    string(name: 'GATEWAY_TAG', defaultValue: 'latest')
+    string(name: 'ADMIN_TAG', defaultValue: 'latest')
+  }
+
+  environment {
+    DOCKERHUB_REPO = 'phanphuc269'
+  }
+
+  stages {
+    stage('Helm Deploy các service') {
+      steps {
+        script {
+          sh "kubectl create namespace ${params.NAMESPACE} || true"
+
+          def args = [
+            "--namespace ${params.NAMESPACE}",
+            "--create-namespace",
+            "--set ingress.host=${params.DOMAIN}",
+
+            "--set config.image.repository=${DOCKERHUB_REPO}/spring-petclinic-config-server",
+            "--set config.image.tag=${params.CONFIG_TAG}",
+
+            "--set discovery.image.repository=${DOCKERHUB_REPO}/spring-petclinic-discovery-server",
+            "--set discovery.image.tag=${params.DISCOVERY_TAG}",
+
+            "--set customers.image.repository=${DOCKERHUB_REPO}/spring-petclinic-customers-service",
+            "--set customers.image.tag=${params.CUSTOMERS_TAG}",
+
+            "--set vets.image.repository=${DOCKERHUB_REPO}/spring-petclinic-vets-service",
+            "--set vets.image.tag=${params.VETS_TAG}",
+
+            "--set visits.image.repository=${DOCKERHUB_REPO}/spring-petclinic-visits-service",
+            "--set visits.image.tag=${params.VISITS_TAG}",
+
+            "--set gateway.image.repository=${DOCKERHUB_REPO}/spring-petclinic-api-gateway",
+            "--set gateway.image.tag=${params.GATEWAY_TAG}",
+
+            "--set admin.image.repository=${DOCKERHUB_REPO}/spring-petclinic-admin-server",
+            "--set admin.image.tag=${params.ADMIN_TAG}"
+          ]
+
+          sh "helm upgrade --install petclinic ./petclinic-chart ${args.join(' ')}"
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "✅ Deploy thành công trên namespace: ${params.NAMESPACE} với ingress: ${params.DOMAIN}"
+    }
+    failure {
+      echo "❌ Lỗi trong quá trình Helm deploy. Xem log để biết thêm chi tiết."
+    }
+  }
+}
