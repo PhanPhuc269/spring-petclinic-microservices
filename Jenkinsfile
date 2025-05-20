@@ -1,109 +1,89 @@
-import io.jenkins.plugins.checks.api.ChecksStatus
+// Jenkinsfile tổng quát cho CI/CD (Petclinic)
+
+def commitId = ""
+
+def SERVICE_NAME = params.SERVICE_NAME
+
+def NAMESPACE = params.NAMESPACE
+
+def DOMAIN = params.DOMAIN
+
+def BRANCH = params.BRANCH_NAME
+
+def DOCKER_IMAGE = "hykura/spring-petclinic-${SERVICE_NAME}"
+
+def RELEASE_NAME = "${SERVICE_NAME}-${NAMESPACE}"
+
+def IMAGE_TAG = ""
 
 pipeline {
-    agent any
-    environment {
-        SERVICE_CHANGED = "" // Biến kiểm tra service thay đổi
-    }
-    stages {
-        stage('Checkout') {
-            steps {
-                script {
-                    // Lấy danh sách file đã thay đổi
-                    def changes = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
-                    echo "Changed files:\n${changes}"
+  agent any
 
-                    // Xác định service nào thay đổi
-                    if (changes.contains("customers-service/")) {
-                        env.SERVICE_CHANGED = "customers-service"
-                    } else if (changes.contains("vets-service/")) {
-                        env.SERVICE_CHANGED = "vets-service"
-                    } else if (changes.contains("visit-service/")) {
-                        env.SERVICE_CHANGED = "visit-service"
-                    } else {
-                        echo "No relevant changes detected, skipping build."
-                        currentBuild.result = 'ABORTED'
-                        return
-                    }
-                    echo "Service to build: ${env.SERVICE_CHANGED}"
-                }
-            }
-        }
-        
-        // stage('Test') {
-        //     when { expression { env.SERVICE_CHANGED != "" } }
-        //     steps {
-        //         script {
-        //             // Kiểm tra nội dung thư mục trước khi chạy
-        //             sh 'ls -lah'
-                    
-        //             // Di chuyển vào thư mục chứa source code nếu cần
-        //             sh './mvnw test'
-        //         }
-        //     }
-        //     post {
-        //         success {
-        //             echo "✅ Tests passed successfully."
-        //         }
-        //         failure {
-        //             error "❌ Tests failed!"
-        //         }
-        //     }
-        // }
-        stage('Test') {
-            when {
-                expression { env.SERVICE_CHANGED != "" }
-            }
-            steps {
-                script{
-                    sh "cd ${env.SERVICE_CHANGED}"
-                    sh '../mvnw test'
-                }
-            }
-            post {
-                always {
-                    junit "${env.SERVICE_CHANGED}/target/surefire-reports/*.xml"
-                    cobertura coberturaReportFile: "${env.SERVICE_CHANGED}/target/site/cobertura/coverage.xml"
-                }
-            }
-        }
-        
-        stage('Coverage Check') {
-            when { expression { env.SERVICE_CHANGED != "" } }
-            steps {
-                script {
-                    def coverageFile = "spring-petclinic-microservices/${env.SERVICE_CHANGED}/target/site/jacoco/index.html"
-                    if (fileExists(coverageFile)) {
-                        def coverage = sh(script: "grep -oP '(?<=coverage: )\\d+' ${coverageFile} | head -1", returnStdout: true).trim()
-                        if (coverage.toInteger() < 70) {
-                            error "❌ Coverage is ${coverage}%, below required threshold (70%)"
-                        }
-                        echo "✅ Coverage is ${coverage}% - OK!"
-                    } else {
-                        echo "⚠️ Coverage report not found. Skipping coverage check."
-                    }
-                }
-            }
-        }
-        
-        stage('Build') {
-            when { expression { env.SERVICE_CHANGED != "" } }
-            steps {
-                script {
-                    sh "cd ${env.SERVICE_CHANGED}"
-                    sh '../mvnw package'
-                }
-            }
-        }
-    }
-    
-    post {
-        success {
-            publishChecks name: 'Jenkins', status: ChecksStatus.COMPLETED
-        }
-        failure {
-            publishChecks name: 'Jenkins', status: ChecksStatus.COMPLETED
-        }
+  parameters {
+    string(name: 'BRANCH_NAME', defaultValue: 'main', description: 'Git branch')
+    string(name: 'SERVICE_NAME', defaultValue: 'vets-service', description: 'Tên service cần test')
+    string(name: 'NAMESPACE', defaultValue: 'dev-a', description: 'Namespace riêng cho dev')
+    string(name: 'DOMAIN', defaultValue: 'dev-a.local', description: 'Domain dev truy cập')
+  }
+
+  environment {
+    DOCKERHUB_REPO = 'hykura'
+  }
+
+  stages {
+
+    stage('Clone') {
+      steps {
+        git branch: "${BRANCH}", url: 'https://github.com/spring-petclinic/spring-petclinic-microservices.git'
+      }
     }
 
+    stage('Get Commit ID') {
+      steps {
+        script {
+          commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+          IMAGE_TAG = commitId
+          echo "✅ Commit ID: ${commitId}"
+        }
+      }
+    }
+
+    stage('Build & Push Image') {
+      steps {
+        dir("spring-petclinic-${SERVICE_NAME}") {
+          script {
+            sh "../mvnw clean install -P buildDocker -DskipTests"
+            sh "docker tag springcommunity/spring-petclinic-${SERVICE_NAME}:latest ${DOCKERHUB_REPO}/spring-petclinic-${SERVICE_NAME}:${IMAGE_TAG}"
+            sh "docker push ${DOCKERHUB_REPO}/spring-petclinic-${SERVICE_NAME}:${IMAGE_TAG}"
+          }
+        }
+      }
+    }
+
+    stage('Deploy with Helm') {
+      steps {
+        script {
+          sh "kubectl create namespace ${NAMESPACE} || true"
+
+          sh """
+            helm upgrade --install ${RELEASE_NAME} ./petclinic-chart \
+              --namespace ${NAMESPACE} \
+              --create-namespace \
+              --set image.repository=${DOCKERHUB_REPO}/spring-petclinic-${SERVICE_NAME} \
+              --set image.tag=${IMAGE_TAG} \
+              --set ingress.host=${DOMAIN}
+          """
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "✅ Build + Deploy thành công: ${SERVICE_NAME} @ ${DOMAIN} (namespace: ${NAMESPACE})"
+    }
+    failure {
+      echo "❌ Pipeline thất bại. Kiểm tra log để biết chi tiết."
+    }
+  }
 }

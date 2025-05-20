@@ -1,0 +1,18 @@
+{{- range $name := (include "petclinic.serviceNames" . | splitList "\n") }}
+{{- if $name }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ $name }}
+  ports:
+    - port: {{ index $.Values.service (replace $name "-" "") | default 80 }}
+      targetPort: {{ index $.Values.service (replace $name "-" "") | default 80 }}
+---
+{{- end }}
+{{- end }}
+
+---

@@ -1,0 +1,51 @@
+{{- define "petclinic.serviceNames" -}}
+  config-server
+discovery-server
+customers-service
+visits-service
+vets-service
+api-gateway
+admin-server
+{{- end -}}
+
+{{- $servicePorts := .Values.service -}}
+
+{{- range $name := (include "petclinic.serviceNames" . | splitList "\n") }}
+{{- if $name }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    app: {{ $name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+    spec:
+      {{- if or (eq $name "discovery-server") (eq $name "customers-service") (eq $name "visits-service") (eq $name "vets-service") (eq $name "api-gateway") (eq $name "admin-server") }}
+      initContainers:
+        - name: wait-for-discovery-server
+          image: busybox
+          command: ['sh', '-c', 'until wget -q --spider http://discovery-server:8761/; do echo waiting for discovery server; sleep 2; done;']
+      {{- end }}
+      containers:
+        - name: {{ $name }}
+          image: {{ $.Values.image.repository }}-{{ $name }}:{{ $.Values.image.tag }}
+          ports:
+            - containerPort: {{ index $servicePorts (replace $name "-" "") | default 8080 }}
+          env:
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: http://config-server:8888
+            - name: SPRING_PROFILES_ACTIVE
+              value: docker
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              value: http://discovery-server:8761/eureka/
+---
+{{- end }}
+---

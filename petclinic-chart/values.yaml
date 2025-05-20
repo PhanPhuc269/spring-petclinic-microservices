@@ -1,0 +1,23 @@
+image:
+  repository: hykura/spring-petclinic-api-gateway
+  tag: latest
+
+service:
+  config:
+    port: 8888
+  discovery:
+    port: 8761
+  customers:
+    port: 8081
+  visits:
+    port: 8082
+  vets:
+    port: 8083
+  gateway:
+    port: 8080
+  admin:
+    port: 9090
+    
+ingress:
+  enabled: true
+  host: dev-a.local
