@@ -1,61 +1,62 @@
-// Jenkinsfile tổng quát cho CI/CD (Petclinic)
-
-def commitId = ""
-
-def SERVICE_NAME = params.SERVICE_NAME
-
-def NAMESPACE = params.NAMESPACE
-
-def DOMAIN = params.DOMAIN
-
-def BRANCH = params.BRANCH_NAME
-
-def DOCKER_IMAGE = "hykura/spring-petclinic-${SERVICE_NAME}"
-
-def RELEASE_NAME = "${SERVICE_NAME}-${NAMESPACE}"
-
-def IMAGE_TAG = ""
 
 pipeline {
   agent any
 
   parameters {
-    string(name: 'BRANCH_NAME', defaultValue: 'main', description: 'Git branch')
-    string(name: 'SERVICE_NAME', defaultValue: 'vets-service', description: 'Tên service cần test')
-    string(name: 'NAMESPACE', defaultValue: 'dev-a', description: 'Namespace riêng cho dev')
-    string(name: 'DOMAIN', defaultValue: 'dev-a.local', description: 'Domain dev truy cập')
+    string(name: 'config_branch', defaultValue: 'main')
+    string(name: 'discovery_branch', defaultValue: 'main')
+    string(name: 'customers_branch', defaultValue: 'main')
+    string(name: 'vets_branch', defaultValue: 'dev_vets_service')
+    string(name: 'visits_branch', defaultValue: 'main')
+    string(name: 'gateway_branch', defaultValue: 'main')
+    string(name: 'admin_branch', defaultValue: 'main')
+    string(name: 'NAMESPACE', defaultValue: 'dev-a')
+    string(name: 'DOMAIN', defaultValue: 'dev-a.local')
   }
 
   environment {
-    DOCKERHUB_REPO = 'hykura'
+    DOCKERHUB_REPO = 'phanphuc269'
   }
 
   stages {
-
-    stage('Clone') {
-      steps {
-        git branch: "${BRANCH}", url: 'https://github.com/spring-petclinic/spring-petclinic-microservices.git'
-      }
-    }
-
-    stage('Get Commit ID') {
+    stage('Build & Push Changed Services') {
       steps {
         script {
-          commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-          IMAGE_TAG = commitId
-          echo "✅ Commit ID: ${commitId}"
-        }
-      }
-    }
+          def services = [
+            [name: 'config-server', branch: params.config_branch],
+            [name: 'discovery-server', branch: params.discovery_branch],
+            [name: 'customers-service', branch: params.customers_branch],
+            [name: 'vets-service', branch: params.vets_branch],
+            [name: 'visits-service', branch: params.visits_branch],
+            [name: 'api-gateway', branch: params.gateway_branch],
+            [name: 'admin-server', branch: params.admin_branch]
+          ]
 
-    stage('Build & Push Image') {
-      steps {
-        dir("spring-petclinic-${SERVICE_NAME}") {
-          script {
-            sh "../mvnw clean install -P buildDocker -DskipTests"
-            sh "docker tag springcommunity/spring-petclinic-${SERVICE_NAME}:latest ${DOCKERHUB_REPO}/spring-petclinic-${SERVICE_NAME}:${IMAGE_TAG}"
-            sh "docker push ${DOCKERHUB_REPO}/spring-petclinic-${SERVICE_NAME}:${IMAGE_TAG}"
+          def imageTags = [:] // store service => image tag
+
+          for (svc in services) {
+            def name = svc.name
+            def branch = svc.branch
+            def tag = 'latest'
+
+            if (branch != 'main') {
+              dir("${name}") {
+                echo "➡️ Building ${name} from branch ${branch}"
+                sh "git checkout ${branch}"
+                dir("spring-petclinic-${name}") {
+                  sh "../../../mvnw clean install -P buildDocker -DskipTests"
+                  def commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                  tag = commitId
+                  sh "docker tag springcommunity/spring-petclinic-${name}:latest ${DOCKERHUB_REPO}/spring-petclinic-${name}:${tag}"
+                  sh "docker push ${DOCKERHUB_REPO}/spring-petclinic-${name}:${tag}"
+                }
+              }
+            }
+            imageTags[name] = tag
           }
+
+          // Save tags to environment for Helm deploy
+          writeFile file: 'imagetags.properties', text: imageTags.collect { k, v -> "${k}=${v}" }.join('\n')
         }
       }
     }
@@ -63,16 +64,24 @@ pipeline {
     stage('Deploy with Helm') {
       steps {
         script {
-          sh "kubectl create namespace ${NAMESPACE} || true"
+          def tagMap = readProperties file: 'imagetags.properties'
 
-          sh """
-            helm upgrade --install ${RELEASE_NAME} ./petclinic-chart \
-              --namespace ${NAMESPACE} \
-              --create-namespace \
-              --set image.repository=${DOCKERHUB_REPO}/spring-petclinic-${SERVICE_NAME} \
-              --set image.tag=${IMAGE_TAG} \
-              --set ingress.host=${DOMAIN}
-          """
+          sh "kubectl create namespace ${params.NAMESPACE} || true"
+
+          def helmArgs = [
+            "--namespace ${params.NAMESPACE}",
+            "--create-namespace",
+            "--set ingress.host=${params.DOMAIN}"
+          ]
+
+          for (entry in tagMap) {
+            def svc = entry.key
+            def tag = entry.value
+            helmArgs << "--set ${svc.replace('-', '').replace('service', '')}.image.tag=${tag}"
+            helmArgs << "--set ${svc.replace('-', '').replace('service', '')}.image.repository=${DOCKERHUB_REPO}/spring-petclinic-${svc}"
+          }
+
+          sh "helm upgrade --install petclinic ./petclinic-chart ${helmArgs.join(' ')}"
         }
       }
     }
@@ -80,10 +89,10 @@ pipeline {
 
   post {
     success {
-      echo "✅ Build + Deploy thành công: ${SERVICE_NAME} @ ${DOMAIN} (namespace: ${NAMESPACE})"
+      echo "✅ CI/CD thành công. Mỗi service được gắn tag theo branch chỉ định."
     }
     failure {
-      echo "❌ Pipeline thất bại. Kiểm tra log để biết chi tiết."
+      echo "❌ Pipeline thất bại. Kiểm tra lại thông số hoặc log chi tiết."
     }
   }
 }

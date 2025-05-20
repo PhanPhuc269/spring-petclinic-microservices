@@ -1,18 +1,17 @@
-{{- range $name := (include "petclinic.serviceNames" . | splitList "\n") }}
-{{- if $name }}
+
+{{- range $svc := $services }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $name }}
+  name: {{ $svc }}-service
 spec:
   type: ClusterIP
   selector:
-    app: {{ $name }}
+    app: {{ $svc }}-service
   ports:
-    - port: {{ index $.Values.service (replace $name "-" "") | default 80 }}
-      targetPort: {{ index $.Values.service (replace $name "-" "") | default 80 }}
+    - port: 80
+      targetPort: {{ if eq $svc "config" }}8888{{ else if eq $svc "discovery" }}8761{{ else if eq $svc "customers" }}8081{{ else if eq $svc "visits" }}8082{{ else if eq $svc "vets" }}8083{{ else if eq $svc "gateway" }}8080{{ else }}9090{{ end }}
 ---
-{{- end }}
 {{- end }}
 
 ---

@@ -1,44 +1,27 @@
-{{- define "petclinic.serviceNames" -}}
-  config-server
-discovery-server
-customers-service
-visits-service
-vets-service
-api-gateway
-admin-server
-{{- end -}}
+{{- $services := list "config" "discovery" "customers" "vets" "visits" "gateway" "admin" }}
 
-{{- $servicePorts := .Values.service -}}
-
-{{- range $name := (include "petclinic.serviceNames" . | splitList "\n") }}
-{{- if $name }}
+{{- range $svc := $services }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ $name }}
+  name: {{ $svc }}-service
   labels:
-    app: {{ $name }}
+    app: {{ $svc }}-service
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ $name }}
+      app: {{ $svc }}-service
   template:
     metadata:
       labels:
-        app: {{ $name }}
+        app: {{ $svc }}-service
     spec:
-      {{- if or (eq $name "discovery-server") (eq $name "customers-service") (eq $name "visits-service") (eq $name "vets-service") (eq $name "api-gateway") (eq $name "admin-server") }}
-      initContainers:
-        - name: wait-for-discovery-server
-          image: busybox
-          command: ['sh', '-c', 'until wget -q --spider http://discovery-server:8761/; do echo waiting for discovery server; sleep 2; done;']
-      {{- end }}
       containers:
-        - name: {{ $name }}
-          image: {{ $.Values.image.repository }}-{{ $name }}:{{ $.Values.image.tag }}
+        - name: {{ $svc }}
+          image: {{ (index $.Values $svc).image.repository }}:{{ (index $.Values $svc).image.tag }}
           ports:
-            - containerPort: {{ index $servicePorts (replace $name "-" "") | default 8080 }}
+            - containerPort: {{ if eq $svc "config" }}8888{{ else if eq $svc "discovery" }}8761{{ else if eq $svc "customers" }}8081{{ else if eq $svc "visits" }}8082{{ else if eq $svc "vets" }}8083{{ else if eq $svc "gateway" }}8080{{ else }}9090{{ end }}
           env:
             - name: SPRING_CLOUD_CONFIG_URI
               value: http://config-server:8888
@@ -48,4 +31,3 @@ spec:
               value: http://discovery-server:8761/eureka/
 ---
 {{- end }}
----

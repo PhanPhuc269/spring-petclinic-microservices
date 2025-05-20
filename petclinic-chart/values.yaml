@@ -1,5 +1,5 @@
 image:
-  repository: hykura/spring-petclinic-api-gateway
+  repository: phanphuc269/spring-petclinic-api-gateway
   tag: latest
 
 service:
@@ -17,7 +17,42 @@ service:
     port: 8080
   admin:
     port: 9090
-    
+
+config:
+  image:
+    repository: phanphuc269/spring-petclinic-config-server
+    tag: latest
+
+discovery:
+  image:
+    repository: phanphuc269/spring-petclinic-discovery-server
+    tag: latest
+
+customers:
+  image:
+    repository: phanphuc269/spring-petclinic-customers-service
+    tag: latest
+
+vets:
+  image:
+    repository: phanphuc269/spring-petclinic-vets-service
+    tag: latest
+
+visits:
+  image:
+    repository: phanphuc269/spring-petclinic-visits-service
+    tag: latest
+
+gateway:
+  image:
+    repository: phanphuc269/spring-petclinic-api-gateway
+    tag: latest
+
+admin:
+  image:
+    repository: phanphuc269/spring-petclinic-admin-server
+    tag: latest
+
 ingress:
   enabled: true
-  host: dev-a.local
+  host: petclinic.local
