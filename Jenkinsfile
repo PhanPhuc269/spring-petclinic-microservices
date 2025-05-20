@@ -47,8 +47,12 @@ pipeline {
                   sh "../../../mvnw clean install -P buildDocker -DskipTests"
                   def commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                   tag = commitId
-                  sh "docker tag springcommunity/spring-petclinic-${name}:latest ${DOCKERHUB_REPO}/spring-petclinic-${name}:${tag}"
-                  sh "docker push ${DOCKERHUB_REPO}/spring-petclinic-${name}:${tag}"
+                  withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
+                        sh "docker tag springcommunity/spring-petclinic-${name}:latest ${DOCKERHUB_REPO}/spring-petclinic-${name}:${tag}"
+                        sh "docker push ${DOCKERHUB_REPO}/spring-petclinic-${name}:${tag}"
+                    }
+
                 }
               }
             }
