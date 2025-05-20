@@ -1,72 +1,102 @@
-def globalServiceChanged = []
-def commitId = ''
 
 pipeline {
-    agent any
-    environment {
-        DOCKERHUB_REPO = 'hykura/' // Thay bằng repo DockerHub của bạn
-    }
+  agent any
 
-    stages {
-        stage('Checkout') {
-            steps {
-                script {
-                    checkout scm
-                    commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-                    def changes = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
+  parameters {
+    string(name: 'config_branch', defaultValue: 'main')
+    string(name: 'discovery_branch', defaultValue: 'main')
+    string(name: 'customers_branch', defaultValue: 'main')
+    string(name: 'vets_branch', defaultValue: 'main')
+    string(name: 'visits_branch', defaultValue: 'main')
+    string(name: 'gateway_branch', defaultValue: 'main')
+    string(name: 'admin_branch', defaultValue: 'main')
+    string(name: 'NAMESPACE', defaultValue: 'dev-a')
+    string(name: 'DOMAIN', defaultValue: 'dev-a.local')
+  }
 
-                    def serviceList = [
-                        "spring-petclinic-admin-server",
-                        "spring-petclinic-api-gateway",
-                        "spring-petclinic-config-server",
-                        "spring-petclinic-customers-service",
-                        "spring-petclinic-discovery-server",
-                        "spring-petclinic-vets-service",
-                        "spring-petclinic-visits-service"
-                    ]
+  environment {
+    DOCKERHUB_REPO = 'phanphuc269'
+  }
 
-                    for (svc in serviceList) {
-                        if (changes.contains("${svc}/")) {
-                            globalServiceChanged << svc
-                        }
+  stages {
+    stage('Build & Push Changed Services') {
+      steps {
+        script {
+          def services = [
+            [name: 'config-server', branch: params.config_branch],
+            [name: 'discovery-server', branch: params.discovery_branch],
+            [name: 'customers-service', branch: params.customers_branch],
+            [name: 'vets-service', branch: params.vets_branch],
+            [name: 'visits-service', branch: params.visits_branch],
+            [name: 'api-gateway', branch: params.gateway_branch],
+            [name: 'admin-server', branch: params.admin_branch]
+          ]
+
+          def imageTags = [:] // store service => image tag
+
+          for (svc in services) {
+            def name = svc.name
+            def branch = svc.branch
+            def tag = 'latest'
+
+            if (branch != 'main') {
+              dir("${name}") {
+                echo "➡️ Building ${name} from branch ${branch}"
+                sh "git checkout ${branch}"
+                dir("spring-petclinic-${name}") {
+                  sh "../../../mvnw clean install -P buildDocker -DskipTests"
+                  def commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                  tag = commitId
+                  withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
+                        sh "docker tag springcommunity/spring-petclinic-${name}:latest ${DOCKERHUB_REPO}/spring-petclinic-${name}:${tag}"
+                        sh "docker push ${DOCKERHUB_REPO}/spring-petclinic-${name}:${tag}"
                     }
 
-                    echo "Changed services: ${globalServiceChanged}"
-                    echo "Commit ID: ${commitId}"
                 }
+              }
             }
+            imageTags[name] = tag
+          }
+
+          // Save tags to environment for Helm deploy
+          writeFile file: 'imagetags.properties', text: imageTags.collect { k, v -> "${k}=${v}" }.join('\n')
         }
-        stage('Build & Push Docker Images') {
-            when {
-                expression { globalServiceChanged.size() > 0 }
-            }
-            steps {
-                script {
-                    def branches = [:]
-        
-                    globalServiceChanged.each { svc ->
-                        branches[svc] = {
-                            dir("${svc}") {
-                                def imageTag = "${DOCKERHUB_REPO}${svc}:${commitId}"
-                                echo "Building image: ${imageTag}"
-                                sh '../mvnw clean install -P buildDocker -DskipTests'
-                                sh "docker tag springcommunity/${svc}:latest ${imageTag}"
-                                echo "Pushing image: ${imageTag}"
-                                sh "docker push ${imageTag}"
-                            }
-                        }
-                    }
-        
-                    // Run in parallel
-                    parallel branches
-                }
-            }
-        }
+      }
     }
 
-    post {
-        success {
-            echo "Build, push, and deploy completed for: ${globalServiceChanged}"
+    stage('Deploy with Helm') {
+      steps {
+        script {
+          def tagMap = readProperties file: 'imagetags.properties'
+
+          sh "kubectl create namespace ${params.NAMESPACE} || true"
+
+          def helmArgs = [
+            "--namespace ${params.NAMESPACE}",
+            "--create-namespace",
+            "--set ingress.host=${params.DOMAIN}"
+          ]
+
+          for (entry in tagMap) {
+            def svc = entry.key
+            def tag = entry.value
+            helmArgs << "--set ${svc.replace('-', '').replace('service', '')}.image.tag=${tag}"
+            helmArgs << "--set ${svc.replace('-', '').replace('service', '')}.image.repository=${DOCKERHUB_REPO}/spring-petclinic-${svc}"
+          }
+
+          sh "helm upgrade --install petclinic ./petclinic-chart ${helmArgs.join(' ')}"
         }
+      }
     }
+  }
+
+  post {
+    success {
+      echo "✅ CI/CD thành công. Mỗi service được gắn tag theo branch chỉ định."
+    }
+    failure {
+      echo "❌ Pipeline thất bại. Kiểm tra lại thông số hoặc log chi tiết."
+    }
+  }
 }
