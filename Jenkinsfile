@@ -2,11 +2,11 @@
 pipeline {
   agent any
 
-  parameters {
+  parameters 
     string(name: 'config_branch', defaultValue: 'main')
     string(name: 'discovery_branch', defaultValue: 'main')
     string(name: 'customers_branch', defaultValue: 'main')
-    string(name: 'vets_branch', defaultValue: 'dev_vets_service')
+    string(name: 'vets_branch', defaultValue: 'main')
     string(name: 'visits_branch', defaultValue: 'main')
     string(name: 'gateway_branch', defaultValue: 'main')
     string(name: 'admin_branch', defaultValue: 'main')
