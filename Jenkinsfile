@@ -49,7 +49,7 @@ pipeline {
                             dir("${svc}") {
                                 def imageTag = "${DOCKERHUB_REPO}${svc}:${commitId}"
                                 echo "Building image: ${imageTag}"
-                                sh 'unset DOCKER_BUILDKIT && ../mvnw clean install -P buildDocker -DskipTests'
+                                sh 'export DOCKER_BUILDKIT=1 && ../mvnw clean install -P buildDocker -DskipTests'
                                 sh "docker tag springcommunity/${svc}:latest ${imageTag}"
                                 echo "Pushing image: ${imageTag}"
                                 sh "docker push ${imageTag}"
