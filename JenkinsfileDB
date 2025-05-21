@@ -87,7 +87,7 @@ tag = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                         rm -rf /var/lib/jenkins/helm/helm-petclinic
                       fi
 
-                      git clone https://github.com/phiho15/helm-petclinic.git /var/lib/jenkins/helm/helm-petclinic
+                      git clone https://github.com/PhanPhuc269/helm-petclinic.git /var/lib/jenkins/helm/helm-petclinic
 
                       helm upgrade --install ${HELM_RELEASE_NAME} /var/lib/jenkins/helm/helm-petclinic \\
                           --namespace ${KUBE_NAMESPACE} \\
