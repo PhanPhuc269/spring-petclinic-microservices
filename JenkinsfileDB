@@ -103,22 +103,31 @@ tag = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
 
     post {
         success {
-            script {
-                def nodePort = sh(script: "kubectl get svc -n ${KUBE_NAMESPACE} api-gateway -o jsonpath='{.spec.ports[0].nodePort}'", returnStdout: true).trim()
-                def workerNodeIP = sh(script: "kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type==\"ExternalIP\")].address}'", returnStdout: true).trim()
-                
-                echo """
-                ✅ Deployment completed successfully!
-                
-                📝 Access Information:
-                - Namespace: ${KUBE_NAMESPACE}
-                - API Gateway: http://${workerNodeIP}:${nodePort}
-                - Eureka Dashboard: http://${workerNodeIP}:30002
-                - Admin Server: http://${workerNodeIP}:30007
-                
-                🔧 To access the services, add the following to your hosts file:
-                ${workerNodeIP} petclinic.local
-                """
+            withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
+                script {
+                    def nodePort = sh(
+                        script: "KUBECONFIG=${KUBECONFIG_FILE} kubectl get svc -n ${KUBE_NAMESPACE} api-gateway -o jsonpath='{.spec.ports[0].nodePort}'",
+                        returnStdout: true
+                    ).trim()
+                    
+                    def workerNodeIP = sh(
+                        script: "KUBECONFIG=${KUBECONFIG_FILE} kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type==\"ExternalIP\")].address}'",
+                        returnStdout: true
+                    ).trim()
+
+                    echo """
+                    ✅ Deployment completed successfully!
+                    
+                    📝 Access Information:
+                    - Namespace: ${KUBE_NAMESPACE}
+                    - API Gateway: http://${workerNodeIP}:${nodePort}
+                    - Eureka Dashboard: http://${workerNodeIP}:30002
+                    - Admin Server: http://${workerNodeIP}:30007
+                    
+                    🔧 To access the services, add the following to your hosts file:
+                    ${workerNodeIP} petclinic.local
+                    """
+                }
             }
         }
         failure {
@@ -128,8 +137,8 @@ tag = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
             """
         }
         always {
-            // Cleanup temporary directories
             sh 'rm -rf tmp-*'
         }
     }
+
 }
