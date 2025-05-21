@@ -76,16 +76,19 @@ tag = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
 
         stage('Deploy with Helm') {
             steps {
-                script {
-                    // Install/upgrade Helm release using --set for each service
-                    sh """
-                    echo "🚀 Deploying to namespace: ${KUBE_NAMESPACE}"
-                    helm upgrade --install ${HELM_RELEASE_NAME} ./helm-petclinic \\
-                        --namespace ${KUBE_NAMESPACE} \\
-                        --create-namespace \\
-                        -f ./helm-petclinic/values.yaml \\
-                        ${env.HELM_SET_ARGUMENTS}
-                    """
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
+                  script {
+                      // Install/upgrade Helm release using --set for each service
+                      sh """
+                      export KUBECONFIG=$KUBECONFIG_FILE
+                      echo "🚀 Deploying to namespace: ${KUBE_NAMESPACE}"
+                      helm upgrade --install ${HELM_RELEASE_NAME} ./helm-petclinic \\
+                          --namespace ${KUBE_NAMESPACE} \\
+                          --create-namespace \\
+                          -f ./helm-petclinic/values.yaml \\
+                          ${env.HELM_SET_ARGUMENTS}
+                      """
+                  }
                 }
             }
         }
