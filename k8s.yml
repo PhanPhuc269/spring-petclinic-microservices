@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: config-server
-          image: hykura/spring-petclinic-config-server:latest
+          image: phanphuc269/spring-petclinic-config-server:latest
           ports:
             - containerPort: 8888
           readinessProbe:
@@ -66,7 +66,7 @@ spec:
           command: ['sh', '-c', 'until wget -q --spider http://config-server:8888/; do echo waiting for config server; sleep 2; done;']
       containers:
         - name: discovery-server
-          image: hykura/spring-petclinic-discovery-server:latest
+          image: phanphuc269/spring-petclinic-discovery-server:latest
           ports:
             - containerPort: 8761
           env:
@@ -121,7 +121,7 @@ spec:
           command: ['sh', '-c', 'until wget -q --spider http://discovery-server:8761/; do echo waiting for discovery server; sleep 2; done;']
       containers:
         - name: customers-service
-          image: hykura/spring-petclinic-customers-service:latest
+          image: phanphuc269/spring-petclinic-customers-service:latest
           ports:
             - containerPort: 8081
           env:
@@ -170,7 +170,7 @@ spec:
           command: ['sh', '-c', 'until wget -q --spider http://discovery-server:8761/; do echo waiting for discovery server; sleep 2; done;']
       containers:
         - name: visits-service
-          image: hykura/spring-petclinic-visits-service:latest
+          image: phanphuc269/spring-petclinic-visits-service:latest
           ports:
             - containerPort: 8082
           env:
@@ -219,7 +219,7 @@ spec:
           command: ['sh', '-c', 'until wget -q --spider http://discovery-server:8761/; do echo waiting for discovery server; sleep 2; done;']
       containers:
         - name: vets-service
-          image: hykura/spring-petclinic-vets-service:latest
+          image: phanphuc269/spring-petclinic-vets-service:latest
           ports:
             - containerPort: 8083
           env:
@@ -268,7 +268,7 @@ spec:
           command: ['sh', '-c', 'until wget -q --spider http://discovery-server:8761/; do echo waiting for discovery server; sleep 2; done;']
       containers:
         - name: api-gateway
-          image: hykura/spring-petclinic-api-gateway:latest
+          image: phanphuc269/spring-petclinic-api-gateway:latest
           ports:
             - containerPort: 8080
           env:
@@ -317,7 +317,7 @@ spec:
           command: ['sh', '-c', 'until wget -q --spider http://discovery-server:8761/; do echo waiting for discovery server; sleep 2; done;']
       containers:
         - name: admin-server
-          image: hykura/spring-petclinic-admin-server:latest
+          image: phanphuc269/spring-petclinic-admin-server:latest
           ports:
             - containerPort: 9090
           env:

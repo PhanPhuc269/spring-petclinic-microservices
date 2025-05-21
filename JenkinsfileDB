@@ -1,68 +1,125 @@
 pipeline {
-  agent any
+    agent any
 
-  parameters {
-    string(name: 'NAMESPACE', defaultValue: 'dev-a', description: 'Namespace cho dev')
-    string(name: 'DOMAIN', defaultValue: 'dev-a.local', description: 'Tên miền cho ingress')
+    environment {
+        DOCKERHUB_REPO = 'phanphuc269/'
+        KUBE_NAMESPACE = 'dev'
+        HELM_RELEASE_NAME = 'petclinic'
+    }
 
-    string(name: 'CONFIG_TAG', defaultValue: 'latest')
-    string(name: 'DISCOVERY_TAG', defaultValue: 'latest')
-    string(name: 'CUSTOMERS_TAG', defaultValue: 'latest')
-    string(name: 'VETS_TAG', defaultValue: 'latest')
-    string(name: 'VISITS_TAG', defaultValue: 'latest')
-    string(name: 'GATEWAY_TAG', defaultValue: 'latest')
-    string(name: 'ADMIN_TAG', defaultValue: 'latest')
-  }
+    parameters {
+        string(name: 'VETS_SERVICE_BRANCH', defaultValue: 'main', description: 'Branch cho vets-service')
+        string(name: 'CUSTOMERS_SERVICE_BRANCH', defaultValue: 'main', description: 'Branch cho customers-service')
+        string(name: 'VISITS_SERVICE_BRANCH', defaultValue: 'main', description: 'Branch cho visits-service')
+        string(name: 'API_GATEWAY_BRANCH', defaultValue: 'main', description: 'Branch cho api-gateway')
+        string(name: 'CONFIG_SERVER_BRANCH', defaultValue: 'main', description: 'Branch cho config-server')
+        string(name: 'DISCOVERY_SERVER_BRANCH', defaultValue: 'main', description: 'Branch cho discovery-server')
+        string(name: 'ADMIN_SERVER_BRANCH', defaultValue: 'main', description: 'Branch cho admin-server')
+    }
 
-  environment {
-    DOCKERHUB_REPO = 'phanphuc269'
-  }
+    stages {
+        stage('Determine Commit IDs') {
+            steps {
+                script {
+                    def serviceBranchMap = [
+                        "vets-service"      : params.VETS_SERVICE_BRANCH,
+                        "customers-service" : params.CUSTOMERS_SERVICE_BRANCH,
+                        "visits-service"    : params.VISITS_SERVICE_BRANCH,
+                        "api-gateway"       : params.API_GATEWAY_BRANCH,
+                        "config-server"     : params.CONFIG_SERVER_BRANCH,
+                        "discovery-server"  : params.DISCOVERY_SERVER_BRANCH,
+                        "admin-server"      : params.ADMIN_SERVER_BRANCH
+                    ]
 
-  stages {
-    stage('Helm Deploy các service') {
-      steps {
-        script {
-          sh "kubectl create namespace ${params.NAMESPACE} || true"
+                    // Generate a timestamp for unique namespace
+                    def timestamp = sh(script: 'date +%Y%m%d%H%M%S', returnStdout: true).trim()
+                    // Get Jenkins build number
+                    def buildNumber = env.BUILD_NUMBER
+                    // Create a unique namespace name
+                    env.KUBE_NAMESPACE = "petclinic-${buildNumber}-${timestamp}"
+                    
+                    echo "📦 DockerHub Repo: ${DOCKERHUB_REPO}"
+                    echo "📁 K8s Namespace: ${KUBE_NAMESPACE}"
+                    echo "📌 Branch info:"
+                    
+                    // Tạo string cho --set arguments
+                    def setArguments = ""
+                    
+                    serviceBranchMap.each { svc, branch ->
+                        echo "- ${svc}: ${branch}"
+                        
+                        def tag = "latest"
+                        echo "\n🔍 Processing service: ${svc}"
+                        echo "   └─ Branch: ${branch}"
 
-          def args = [
-            "--namespace ${params.NAMESPACE}",
-            "--create-namespace",
-            "--set ingress.host=${params.DOMAIN}",
-
-            "--set config.image.repository=${DOCKERHUB_REPO}/spring-petclinic-config-server",
-            "--set config.image.tag=${params.CONFIG_TAG}",
-
-            "--set discovery.image.repository=${DOCKERHUB_REPO}/spring-petclinic-discovery-server",
-            "--set discovery.image.tag=${params.DISCOVERY_TAG}",
-
-            "--set customers.image.repository=${DOCKERHUB_REPO}/spring-petclinic-customers-service",
-            "--set customers.image.tag=${params.CUSTOMERS_TAG}",
-
-            "--set vets.image.repository=${DOCKERHUB_REPO}/spring-petclinic-vets-service",
-            "--set vets.image.tag=${params.VETS_TAG}",
-
-            "--set visits.image.repository=${DOCKERHUB_REPO}/spring-petclinic-visits-service",
-            "--set visits.image.tag=${params.VISITS_TAG}",
-
-            "--set gateway.image.repository=${DOCKERHUB_REPO}/spring-petclinic-api-gateway",
-            "--set gateway.image.tag=${params.GATEWAY_TAG}",
-
-            "--set admin.image.repository=${DOCKERHUB_REPO}/spring-petclinic-admin-server",
-            "--set admin.image.tag=${params.ADMIN_TAG}"
-          ]
-
-          sh "helm upgrade --install petclinic ./petclinic-chart ${args.join(' ')}"
+                        if (branch != "main") {
+                            dir("tmp-${svc}") {
+                                echo "   📥 Cloning branch '${branch}' from repository..."
+                                git branch: branch, url: "https://github.com/phiho15/spring-petclinic-microservices.git"
+tag = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                                echo "   🆔 Commit ID (tag): ${tag}"
+                            }
+                        } else {
+                            echo "   🏷 Using tag: latest"
+                        }
+                        
+                        // Add to set arguments string
+                        setArguments += " --set services.${svc}.image.tag=${tag}"
+                    }
+                    
+                    // Lưu set arguments vào environment variable để sử dụng ở stage sau
+                    env.HELM_SET_ARGUMENTS = setArguments
+                    echo "🔧 Helm set arguments: ${env.HELM_SET_ARGUMENTS}"
+                }
+            }
         }
-      }
-    }
-  }
 
-  post {
-    success {
-      echo "✅ Deploy thành công trên namespace: ${params.NAMESPACE} với ingress: ${params.DOMAIN}"
+        stage('Deploy with Helm') {
+            steps {
+                script {
+                    // Install/upgrade Helm release using --set for each service
+                    sh """
+                    echo "🚀 Deploying to namespace: ${KUBE_NAMESPACE}"
+                    helm upgrade --install ${HELM_RELEASE_NAME} /var/lib/jenkins/helm/helm-petclinic \\
+                        --namespace ${KUBE_NAMESPACE} \\
+                        --create-namespace \\
+                        -f /var/lib/jenkins/helm/helm-petclinic/values.yaml \\
+                        ${env.HELM_SET_ARGUMENTS}
+                    """
+                }
+            }
+        }
     }
-    failure {
-      echo "❌ Lỗi trong quá trình Helm deploy. Xem log để biết thêm chi tiết."
+
+    post {
+        success {
+            script {
+                def nodePort = sh(script: "kubectl get svc -n ${KUBE_NAMESPACE} api-gateway -o jsonpath='{.spec.ports[0].nodePort}'", returnStdout: true).trim()
+                def workerNodeIP = sh(script: "kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type==\"ExternalIP\")].address}'", returnStdout: true).trim()
+                
+                echo """
+                ✅ Deployment completed successfully!
+                
+                📝 Access Information:
+                - Namespace: ${KUBE_NAMESPACE}
+                - API Gateway: http://${workerNodeIP}:${nodePort}
+                - Eureka Dashboard: http://${workerNodeIP}:30002
+                - Admin Server: http://${workerNodeIP}:30007
+                
+                🔧 To access the services, add the following to your hosts file:
+                ${workerNodeIP} petclinic.local
+                """
+            }
+        }
+        failure {
+            echo """
+            ❌ Deployment failed. Check logs for details.
+            - Namespace attempted: ${KUBE_NAMESPACE}
+            """
+        }
+        always {
+            // Cleanup temporary directories
+            sh 'rm -rf tmp-*'
+        }
     }
-  }
 }
