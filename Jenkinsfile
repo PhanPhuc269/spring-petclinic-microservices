@@ -41,24 +41,27 @@ pipeline {
                 expression { globalServiceChanged.size() > 0 }
             }
             steps {
-                script {
-                    def branches = [:]
-        
-                    globalServiceChanged.each { svc ->
-                        branches[svc] = {
-                            dir("${svc}") {
-                                def imageTag = "${DOCKERHUB_REPO}${svc}:${commitId}"
-                                echo "Building image: ${imageTag}"
-                                sh 'export DOCKER_BUILDKIT=1 && ../mvnw clean install -P buildDocker -DskipTests'
-                                sh "docker tag springcommunity/${svc}:latest ${imageTag}"
-                                echo "Pushing image: ${imageTag}"
-                                sh "docker push ${imageTag}"
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    script {
+                        sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
+                        def branches = [:]
+            
+                        globalServiceChanged.each { svc ->
+                            branches[svc] = {
+                                dir("${svc}") {
+                                    def imageTag = "${DOCKERHUB_REPO}${svc}:${commitId}"
+                                    echo "Building image: ${imageTag}"
+                                    sh 'export DOCKER_BUILDKIT=1 && ../mvnw clean install -P buildDocker -DskipTests'
+                                    sh "docker tag springcommunity/${svc}:latest ${imageTag}"
+                                    echo "Pushing image: ${imageTag}"
+                                    sh "docker push ${imageTag}"
+                                }
                             }
                         }
+            
+                        // Run in parallel
+                        parallel branches
                     }
-        
-                    // Run in parallel
-                    parallel branches
                 }
             }
         }
