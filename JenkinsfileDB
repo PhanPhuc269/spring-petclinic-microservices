@@ -3,8 +3,9 @@ pipeline {
 
     environment {
         DOCKERHUB_REPO = 'phanphuc269/'
-        KUBE_NAMESPACE = 'dev'
+        // KUBE_NAMESPACE = 'dev'
         HELM_RELEASE_NAME = 'petclinic'
+        HOST = 'phanphuc.id.vn'
     }
 
     parameters {
@@ -105,28 +106,14 @@ tag = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
         success {
             withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
                 script {
-                    def nodePort = sh(
-                        script: "KUBECONFIG=${KUBECONFIG_FILE} kubectl get svc -n ${KUBE_NAMESPACE} api-gateway -o jsonpath='{.spec.ports[0].nodePort}'",
-                        returnStdout: true
-                    ).trim()
-                    
-                    def workerNodeIP = sh(
-                        script: "KUBECONFIG=${KUBECONFIG_FILE} kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type==\"ExternalIP\")].address}'",
-                        returnStdout: true
-                    ).trim()
-
                     echo """
                     ✅ Deployment completed successfully!
                     
                     📝 Access Information:
                     - Namespace: ${KUBE_NAMESPACE}
-                    - API Gateway: http://${workerNodeIP}:${nodePort}
-                    - Eureka Dashboard: http://${workerNodeIP}:30002
-                    - Admin Server: http://${workerNodeIP}:30007
-                    
-                    🔧 To access the services, add the following to your hosts file:
-                    ${workerNodeIP} petclinic.local
-                    """
+                    - API Gateway: http://${KUBE_NAMESPACE}-${HELM_RELEASE_NAME}.${HOST}
+                    - Eureka Dashboard: http://eureka.${KUBE_NAMESPACE}-${HELM_RELEASE_NAME}.${HOST}
+                    - Admin Server: http://admin.${KUBE_NAMESPACE}-${HELM_RELEASE_NAME}.${HOST}
                 }
             }
         }
