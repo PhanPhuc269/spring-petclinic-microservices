@@ -80,10 +80,10 @@ tag = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                     // Install/upgrade Helm release using --set for each service
                     sh """
                     echo "🚀 Deploying to namespace: ${KUBE_NAMESPACE}"
-                    helm upgrade --install ${HELM_RELEASE_NAME} /helm-petclinic \\
+                    helm upgrade --install ${HELM_RELEASE_NAME} ./helm-petclinic \\
                         --namespace ${KUBE_NAMESPACE} \\
                         --create-namespace \\
-                        -f /var/lib/jenkins/helm/helm-petclinic/values.yaml \\
+                        -f ./helm-petclinic/values.yaml \\
                         ${env.HELM_SET_ARGUMENTS}
                     """
                 }
