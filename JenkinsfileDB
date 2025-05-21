@@ -114,6 +114,8 @@ tag = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                     - API Gateway: http://${KUBE_NAMESPACE}-${HELM_RELEASE_NAME}.${HOST}
                     - Eureka Dashboard: http://eureka.${KUBE_NAMESPACE}-${HELM_RELEASE_NAME}.${HOST}
                     - Admin Server: http://admin.${KUBE_NAMESPACE}-${HELM_RELEASE_NAME}.${HOST}
+
+                    """
                 }
             }
         }
