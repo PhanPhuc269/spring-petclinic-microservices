@@ -7,7 +7,7 @@ pipeline {
         HELM_RELEASE_NAME = 'petclinic'
         HOST = 'phanphuc.id.vn'
     }
-
+ 
     parameters {
         string(name: 'VETS_SERVICE_BRANCH', defaultValue: 'main', description: 'Branch cho vets-service')
         string(name: 'CUSTOMERS_SERVICE_BRANCH', defaultValue: 'main', description: 'Branch cho customers-service')
