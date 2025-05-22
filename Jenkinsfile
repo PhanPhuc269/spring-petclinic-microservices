@@ -55,6 +55,18 @@ pipeline {
             }
         }
 
+        stage('Clone helm-petclinic') {
+            steps {
+                script {
+                    dir('helm') {
+                        git branch: 'main', url: 'https://github.com/PhanPhuc269/helm-petclinic.git'
+                        sh 'git config user.email "jenkins@yourdomain.com"'
+                        sh 'git config user.name "Jenkins CI"'
+                    }
+                }
+            }
+        }               
+
         stage('Build & Push Docker Images') {
             when {
                 expression { globalServiceChanged.size() > 0 }
