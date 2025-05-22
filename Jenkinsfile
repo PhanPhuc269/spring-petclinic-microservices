@@ -14,7 +14,6 @@ pipeline {
             steps {
                 script {
                     checkout scm
-                    sh "git fetch --tags"
                     commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                     gitTagName = sh(script: 'git describe --exact-match --tags || true', returnStdout: true).trim()
 
