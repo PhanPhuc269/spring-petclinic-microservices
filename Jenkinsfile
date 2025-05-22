@@ -95,17 +95,15 @@ pipeline {
                 script {
                     globalServiceChanged.each { svc ->
                         def key = svc.replace("spring-petclinic-", "").replace("-service", "-service").replace("-gateway", "-gateway")
-                        powershell """
-                        (Get-Content /var/lib/jenkins/helm/helm-petclinic/environments/values-dev.yaml) `
-                        -replace '(?<=${key}:\\s*\\n\\s*image:\\s*\\n\\s*tag: )\\S+', '${commitId}' `
-                        | Set-Content /var/lib/jenkins/helm/helm-petclinic/environments/values-dev.yaml
+                        sh """
+                        sed -i '/${key}:$/,/tag:/s/tag: .*/tag: ${commitId}/' ./helm/helm-petclinic/environments/values-dev.yaml
                         """
                     }
-                    powershell 'git config user.email "jenkins@yourdomain.com"'
-                    powershell 'git config user.name "Jenkins CI"'
-                    powershell 'git add /var/lib/jenkins/helm/helm-petclinic/environments/values-dev.yaml'
-                    powershell "git commit -m \"[dev] Update image tag to ${commitId} for ${globalServiceChanged}\""
-                    powershell 'git push origin HEAD:dev'
+                    sh 'git config user.email "jenkins@yourdomain.com"'
+                    sh 'git config user.name "Jenkins CI"'
+                    sh 'git add ./helm/helm-petclinic/environments/values-dev.yaml'
+                    sh "git commit -m \"[dev] Update image tag to ${commitId} for ${globalServiceChanged}\""
+                    sh 'git push origin HEAD:dev'
                 }
             }
         }
@@ -116,20 +114,17 @@ pipeline {
             }
             steps {
                 script {
-                    // Cập nhật tag cho tất cả service về tag mới (gitTagName)
-                    powershell """
-                    (Get-Content /var/lib/jenkins/helm/helm-petclinic/environments/values-staging.yaml) `
-                    -replace '(?<=tag: )\\S+', '${gitTagName}' `
-                    | Set-Content /var/lib/jenkins/helm/helm-petclinic/environments/values-staging.yaml
+                    sh """
+                    sed -i 's/tag: .*/tag: ${gitTagName}/g' ./helm/helm-petclinic/environments/values-staging.yaml
                     """
-                    powershell 'git config user.email "jenkins@yourdomain.com"'
-                    powershell 'git config user.name "Jenkins CI"'
-                    powershell 'git add /var/lib/jenkins/helm/helm-petclinic/environments/values-staging.yaml'
-                    powershell "git commit -m \"[staging] Release image tag ${gitTagName} for all services\""
-                    powershell 'git push origin HEAD:staging'
+                    sh 'git config user.email "jenkins@yourdomain.com"'
+                    sh 'git config user.name "Jenkins CI"'
+                    sh 'git add ./helm/helm-petclinic/environments/values-staging.yaml'
+                    sh "git commit -m \"[staging] Release image tag ${gitTagName} for all services\""
+                    sh 'git push origin HEAD:staging'
                 }
             }
-        }        
+        }     
     }
 
     post {
