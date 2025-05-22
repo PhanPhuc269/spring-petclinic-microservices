@@ -1,144 +1,163 @@
+def globalServiceChanged = []
+def commitId = ''
+def isTagBuild = false
+def gitTagName = ''
+
 pipeline {
     agent any
-
     environment {
-        DOCKERHUB_REPO = 'phanphuc269/'
-        KUBE_NAMESPACE = 'dev'
-        HELM_RELEASE_NAME = 'petclinic'
-        HOST = 'phanphuc.id.vn'
-    }
-
-    parameters {
-        string(name: 'VETS_SERVICE_BRANCH', defaultValue: 'main', description: 'Branch cho vets-service')
-        string(name: 'CUSTOMERS_SERVICE_BRANCH', defaultValue: 'main', description: 'Branch cho customers-service')
-        string(name: 'VISITS_SERVICE_BRANCH', defaultValue: 'main', description: 'Branch cho visits-service')
-        string(name: 'API_GATEWAY_BRANCH', defaultValue: 'main', description: 'Branch cho api-gateway')
-        string(name: 'CONFIG_SERVER_BRANCH', defaultValue: 'main', description: 'Branch cho config-server')
-        string(name: 'DISCOVERY_SERVER_BRANCH', defaultValue: 'main', description: 'Branch cho discovery-server')
-        string(name: 'ADMIN_SERVER_BRANCH', defaultValue: 'main', description: 'Branch cho admin-server')
+        DOCKERHUB_REPO = 'phanphuc269/' // Thay bằng DockerHub repo của bạn
     }
 
     stages {
-        stage('Determine Commit IDs') {
+        stage('Checkout') {
             steps {
                 script {
-                    def serviceBranchMap = [
-                        "vets-service"      : [branch: params.VETS_SERVICE_BRANCH, path: 'spring-petclinic-vets-service'],
-                        "customers-service" : [branch: params.CUSTOMERS_SERVICE_BRANCH, path: 'spring-petclinic-customers-service'],
-                        "visits-service"    : [branch: params.VISITS_SERVICE_BRANCH, path: 'spring-petclinic-visits-service'],
-                        "api-gateway"       : [branch: params.API_GATEWAY_BRANCH, path: 'spring-petclinic-api-gateway'],
-                        "config-server"     : [branch: params.CONFIG_SERVER_BRANCH, path: 'spring-petclinic-config-server'],
-                        "discovery-server"  : [branch: params.DISCOVERY_SERVER_BRANCH, path: 'spring-petclinic-discovery-server'],
-                        "admin-server"      : [branch: params.ADMIN_SERVER_BRANCH, path: 'spring-petclinic-admin-server']
-                    ]
+                    checkout scm
+                    commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    gitTagName = sh(script: 'git describe --exact-match --tags || true', returnStdout: true).trim()
 
-                    // Generate a timestamp for unique namespace
-                    def timestamp = sh(script: 'date +%Y%m%d%H%M%S', returnStdout: true).trim()
-                    def buildNumber = env.BUILD_NUMBER
-                    env.KUBE_NAMESPACE = "petclinic-${buildNumber}-${timestamp}"
-                    
-                    echo "📦 DockerHub Repo: ${DOCKERHUB_REPO}"
-                    echo "📁 K8s Namespace: ${KUBE_NAMESPACE}"
-                    echo "📌 Branch info:"
-                    
-                    def setArguments = ""
-                    
-                    serviceBranchMap.each { svc, config ->
-                        def branch = config.branch
-                        def servicePath = config.path
-                        echo "- ${svc}: ${branch}"
-                        echo "\n🔍 Processing service: ${svc}"
-                        echo "   └─ Branch: ${branch}"
-                        echo "   └─ Service path: ${servicePath}"
+                    if (gitTagName.startsWith("v")) {
+                        isTagBuild = true
+                        echo "📦 Tag build detected: ${gitTagName}"
+                        // Khi build theo tag, build toàn bộ service
+                        globalServiceChanged = [
+                            "spring-petclinic-admin-server",
+                            "spring-petclinic-api-gateway",
+                            "spring-petclinic-config-server",
+                            "spring-petclinic-customers-service",
+                            "spring-petclinic-discovery-server",
+                            "spring-petclinic-vets-service",
+                            "spring-petclinic-visits-service"
+                        ]
+                    } else {
+                        def changes = sh(script: 'git diff --name-only HEAD~1 HEAD', returnStdout: true).trim()
+                        def serviceList = [
+                            "spring-petclinic-admin-server",
+                            "spring-petclinic-api-gateway",
+                            "spring-petclinic-config-server",
+                            "spring-petclinic-customers-service",
+                            "spring-petclinic-discovery-server",
+                            "spring-petclinic-vets-service",
+                            "spring-petclinic-visits-service"
+                        ]
 
-                        def tag = "latest"
-                        if (branch != "main") {
-                            dir("tmp-${svc}") {
-                                echo "   📥 Cloning branch '${branch}' from repository..."
-                                git branch: branch, url: "https://github.com/phanphuc269/spring-petclinic-microservices.git"
-                                
-                                // Tìm commit ID mới nhất có thay đổi trong thư mục của service
-                                def commitId = sh(script: "git log -1 --pretty=%h -- ${servicePath}", returnStdout: true).trim()
-                                if (commitId) {
-                                    tag = commitId
-                                    echo "   🆔 Latest commit ID for ${servicePath}: ${tag}"
-                                    
-                                    // Kiểm tra xem image với tag là commit ID có tồn tại không
-                                    def imageExists = sh(script: "docker manifest inspect ${DOCKERHUB_REPO}${svc}:${tag} > /dev/null 2>&1 && echo 'true' || echo 'false'", returnStdout: true).trim()
-                                    if (imageExists == 'false') {
-                                        echo "   ⚠️ Image ${DOCKERHUB_REPO}${svc}:${tag} không tồn tại, quay lại dùng tag 'latest'"
-                                        tag = "latest"
-                                    }
-                                } else {
-                                    echo "   ⚠️ Không tìm thấy commit nào thay đổi ${servicePath}, dùng tag 'latest'"
+                        for (svc in serviceList) {
+                            if (changes.contains("${svc}/")) {
+                                globalServiceChanged << svc
+                            }
+                        }
+
+                        echo "Changed services: ${globalServiceChanged}"
+                        echo "Commit ID: ${commitId}"
+                    }
+                }
+            }
+        }
+
+        stage('Clone helm-petclinic') {
+            steps {
+                script {
+                    dir('helm') {
+                        git branch: 'main', url: 'https://github.com/PhanPhuc269/helm-petclinic.git'
+                        sh 'git config user.email "jenkins@yourdomain.com"'
+                        sh 'git config user.name "Jenkins CI"'
+                    }
+                }
+            }
+        }                
+
+        stage('Build & Push Docker Images') {
+            when {
+                expression { globalServiceChanged.size() > 0 }
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    script {
+                        sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
+                        def branches = [:]
+
+                        globalServiceChanged.each { svc ->
+                            branches[svc] = {
+                                dir("${svc}") {
+                                    def tag = isTagBuild ? gitTagName : commitId
+                                    def imageTag = "${DOCKERHUB_REPO}${svc}:${tag}"
+                                    echo "🐳 Building image: ${imageTag}"
+                                    sh 'export DOCKER_BUILDKIT=1 && ../mvnw clean install -P buildDocker -DskipTests'
+
+                                    sh "docker tag springcommunity/${svc}:latest ${imageTag}"
+                                    echo "🚀 Pushing image: ${imageTag}"
+                                    sh "docker push ${imageTag}"
                                 }
                             }
-                        } else {
-                            echo "   🏷 Branch main, using tag: latest"
                         }
-                        
-                        // Thêm vào set arguments
-                        setArguments += " --set services.${svc}.image.tag=${tag}"
+
+                        parallel branches
                     }
-                    
-                    env.HELM_SET_ARGUMENTS = setArguments
-                    echo "🔧 Helm set arguments: ${env.HELM_SET_ARGUMENTS}"
                 }
             }
         }
 
-        stage('Deploy with Helm') {
+        stage('Update values-dev.yaml & Push to Git (dev)') {
+            when {
+                expression { !isTagBuild && globalServiceChanged.size() > 0 }
+            }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
-                    script {
+                script {
+                    globalServiceChanged.each { svc ->
+                        def key = svc.replace("spring-petclinic-", "").replace("-service", "-service").replace("-gateway", "-gateway")
                         sh """
-                        export KUBECONFIG=$KUBECONFIG_FILE
-                        echo "🚀 Deploying to namespace: ${KUBE_NAMESPACE}"
-
-                        if [ -d /var/lib/jenkins/helm/helm-petclinic ]; then
-                            rm -rf /var/lib/jenkins/helm/helm-petclinic
-                        fi
-
-                        git clone https://github.com/PhanPhuc269/helm-petclinic.git /var/lib/jenkins/helm/helm-petclinic
-
-                        helm upgrade --install ${HELM_RELEASE_NAME} /var/lib/jenkins/helm/helm-petclinic \\
-                            --namespace ${KUBE_NAMESPACE} \\
-                            --create-namespace \\
-                            -f /var/lib/jenkins/helm/helm-petclinic/values.yaml \\
-                            ${env.HELM_SET_ARGUMENTS}
+                            sed -i '/${key}:\\\$/,/tag:/s/tag: .*/tag: ${commitId}/' ./helm/environments/values-dev.yaml
                         """
                     }
+                    withCredentials([usernamePassword(credentialsId: 'PhanPhuc269', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
+                        dir('helm') {
+                            sh 'git config user.email "jenkins@yourdomain.com"'
+                            sh 'git config user.name "Jenkins CI"'
+                            sh 'git add environments/values-dev.yaml'
+                            sh "git commit -m '[dev] Update image tag to ${commitId} for ${globalServiceChanged}' || true"
+                            def remoteUrl = "https://${GIT_USER}:${GIT_TOKEN}@github.com/PhanPhuc269/helm-petclinic.git"
+                            sh "git remote set-url origin ${remoteUrl}"
+                            sh 'git push origin HEAD:dev'
+                        }
+                    }
                 }
             }
         }
+
+        stage('Update values-staging.yaml & Push to Git (staging)') {
+            when {
+                expression { isTagBuild }
+            }
+            steps {
+                script {
+                    sh "sed -i 's/tag: .*/tag: ${gitTagName}/g' ./helm/environments/values-staging.yaml"
+                    
+                    withCredentials([usernamePassword(credentialsId: 'PhanPhuc269', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
+                        dir('helm') {
+                            sh 'git config user.email "jenkins@yourdomain.com"'
+                            sh 'git config user.name "Jenkins CI"'
+                            sh 'git add environments/values-staging.yaml'
+                            sh "git commit -m '[staging] Release image tag ${gitTagName} for all services' || true"
+                            def remoteUrl = "https://${GIT_USER}:${GIT_TOKEN}@github.com/PhanPhuc269/helm-petclinic.git"
+                            sh "git remote set-url origin ${remoteUrl}"
+                            sh 'git push origin HEAD:staging'
+                        }
+                    }
+                }
+            }
+        } 
     }
 
     post {
         success {
-            withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
-                script {
-                    echo """
-                    ✅ Deployment completed successfully!
-                    
-                    📝 Access Information:
-                    - Namespace: ${KUBE_NAMESPACE}
-                    - API Gateway: http://${KUBE_NAMESPACE}-${HELM_RELEASE_NAME}.${HOST}
-                    - Eureka Dashboard: http://eureka.${KUBE_NAMESPACE}-${HELM_RELEASE_NAME}.${HOST}
-                    - Admin Server: http://admin.${KUBE_NAMESPACE}-${HELM_RELEASE_NAME}.${HOST}
-                    """
+            script {
+                if (isTagBuild) {
+                    echo "✅ Successfully built and pushed all services for tag: ${gitTagName}"
+                } else {
+                    echo "✅ Build and push completed for changed services: ${globalServiceChanged}"
                 }
             }
-        }
-        failure {
-            script {
-                echo """
-                ❌ Deployment failed. Check logs for details.
-                - Namespace attempted: ${KUBE_NAMESPACE}
-                """
-            }
-        }
-        always {
-            sh 'rm -rf tmp-*'
         }
     }
 }
