@@ -1,0 +1,74 @@
+pipeline {
+    agent any
+
+    environment {
+        KUBE_NAMESPACE = '' // Will be set via parameter
+        HELM_RELEASE_NAME = 'petclinic'
+    }
+
+    parameters {
+        string(name: 'KUBE_NAMESPACE', defaultValue: '', description: 'Namespace to delete (e.g., petclinic-<build-number>-<timestamp>)')
+    }
+
+    stages {
+        stage('Validate Input') {
+            steps {
+                script {
+                    if (!params.KUBE_NAMESPACE) {
+                        error "❌ KUBE_NAMESPACE parameter is required. Please provide the namespace to delete."
+                    }
+                    echo "🗑 Preparing to delete namespace: ${params.KUBE_NAMESPACE}"
+                }
+            }
+        }
+
+        stage('Delete Helm Release and Namespace') {
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
+                    script {
+                        sh """
+                        export KUBECONFIG=$KUBECONFIG_FILE
+                        echo "🚀 Deleting Helm release '${HELM_RELEASE_NAME}' in namespace '${params.KUBE_NAMESPACE}'..."
+
+                        # Check if Helm release exists and delete it
+                        if helm list -n ${params.KUBE_NAMESPACE} | grep -q ${HELM_RELEASE_NAME}; then
+                            helm uninstall ${HELM_RELEASE_NAME} -n ${params.KUBE_NAMESPACE}
+                            echo "✅ Helm release '${HELM_RELEASE_NAME}' deleted."
+                        else
+                            echo "ℹ️ Helm release '${HELM_RELEASE_NAME}' not found in namespace '${params.KUBE_NAMESPACE}'."
+                        fi
+
+                        # Check if namespace exists and delete it
+                        if kubectl get namespace ${params.KUBE_NAMESPACE} > /dev/null 2>&1; then
+                            kubectl delete namespace ${params.KUBE_NAMESPACE}
+                            echo "✅ Namespace '${params.KUBE_NAMESPACE}' deleted."
+                        else
+                            echo "ℹ️ Namespace '${params.KUBE_NAMESPACE}' not found."
+                        fi
+                        """
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                echo """
+                ✅ Cleanup completed successfully!
+                - Namespace: ${params.KUBE_NAMESPACE}
+                - Helm Release: ${HELM_RELEASE_NAME}
+                """
+            }
+        }
+        failure {
+            script {
+                echo """
+                ❌ Cleanup failed. Check logs for details.
+                - Namespace attempted: ${params.KUBE_NAMESPACE}
+                """
+            }
+        }
+    }
+}
