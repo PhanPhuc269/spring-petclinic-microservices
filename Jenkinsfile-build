@@ -106,7 +106,6 @@ pipeline {
                         
                         helm upgrade --install ${HELM_RELEASE_NAME} /var/lib/jenkins/helm/helm-petclinic \\
                             --namespace ${KUBE_NAMESPACE} \\
-                            --create-namespace \\
                             -f /var/lib/jenkins/helm/helm-petclinic/values.yaml \\
                             --set namespace=dev-review \\
                             --set ingress.enabled=true \\
