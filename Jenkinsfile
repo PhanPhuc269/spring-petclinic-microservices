@@ -70,7 +70,6 @@ pipeline {
                                 dir("${svc}") {
                                     def tag = isTagBuild ? gitTagName : commitId
                                     def imageTag = "${DOCKERHUB_REPO}${svc}:${tag}"
-
                                     echo "🐳 Building image: ${imageTag}"
                                     sh 'export DOCKER_BUILDKIT=1 && ../mvnw clean install -P buildDocker -DskipTests'
 
@@ -95,14 +94,12 @@ pipeline {
                 script {
                     globalServiceChanged.each { svc ->
                         def key = svc.replace("spring-petclinic-", "").replace("-service", "-service").replace("-gateway", "-gateway")
-                        sh """
-                        sed -i '/${key}:$/,/tag:/s/tag: .*/tag: ${commitId}/' ./helm/helm-petclinic/environments/values-dev.yaml
-                        """
+                        sh 'sed -i \'/'+key+':$/,/tag:/s/tag: .*/tag: '+commitId+'/\' ./helm/helm-petclinic/environments/values-dev.yaml'
                     }
                     sh 'git config user.email "jenkins@yourdomain.com"'
                     sh 'git config user.name "Jenkins CI"'
                     sh 'git add ./helm/helm-petclinic/environments/values-dev.yaml'
-                    sh "git commit -m \"[dev] Update image tag to ${commitId} for ${globalServiceChanged}\""
+                    sh "git commit -m '[dev] Update image tag to ${commitId} for ${globalServiceChanged}'"
                     sh 'git push origin HEAD:dev'
                 }
             }
@@ -114,17 +111,15 @@ pipeline {
             }
             steps {
                 script {
-                    sh """
-                    sed -i 's/tag: .*/tag: ${gitTagName}/g' ./helm/helm-petclinic/environments/values-staging.yaml
-                    """
+                    sh 'sed -i \'s/tag: .*/tag: '+gitTagName+'/g\' ./helm/helm-petclinic/environments/values-staging.yaml'
                     sh 'git config user.email "jenkins@yourdomain.com"'
                     sh 'git config user.name "Jenkins CI"'
                     sh 'git add ./helm/helm-petclinic/environments/values-staging.yaml'
-                    sh "git commit -m \"[staging] Release image tag ${gitTagName} for all services\""
+                    sh "git commit -m '[staging] Release image tag ${gitTagName} for all services'"
                     sh 'git push origin HEAD:staging'
                 }
             }
-        }     
+        } 
     }
 
     post {
