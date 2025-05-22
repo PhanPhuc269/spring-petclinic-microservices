@@ -116,7 +116,8 @@ pipeline {
                             sh 'git config user.name "Jenkins CI"'
                             sh 'git add environments/values-dev.yaml'
                             sh "git commit -m '[dev] Update image tag to ${commitId} for ${globalServiceChanged}' || true"
-                            sh """git remote set-url origin https://\${GIT_USER}:\${GIT_TOKEN}@github.com/PhanPhuc269/helm-petclinic.git"""
+                            def remoteUrl = "https://${GIT_USER}:${GIT_TOKEN}@github.com/PhanPhuc269/helm-petclinic.git"
+                            sh "git remote set-url origin ${remoteUrl}"
                             sh 'git push origin HEAD:dev'
                         }
                     }
@@ -138,7 +139,8 @@ pipeline {
                             sh 'git config user.name "Jenkins CI"'
                             sh 'git add environments/values-staging.yaml'
                             sh "git commit -m '[staging] Release image tag ${gitTagName} for all services' || true"
-                            sh """git remote set-url origin https://\${GIT_USER}:\${GIT_TOKEN}@github.com/PhanPhuc269/helm-petclinic.git"""
+                            def remoteUrl = "https://${GIT_USER}:${GIT_TOKEN}@github.com/PhanPhuc269/helm-petclinic.git"
+                            sh "git remote set-url origin ${remoteUrl}"
                             sh 'git push origin HEAD:staging'
                         }
                     }
