@@ -57,7 +57,7 @@ pipeline {
                             dir("tmp-${svc}") {
                                 echo "   📥 Cloning branch '${branch}' from repository..."
                                 git branch: branch, url: "https://github.com/phanphuc269/spring-petclinic-microservices.git"
-tag = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                                tag = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                                 echo "   🆔 Commit ID (tag): ${tag}"
                             }
                         } else {
