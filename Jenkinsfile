@@ -111,7 +111,8 @@ pipeline {
             }
             steps {
                 script {
-                    sh "sed -i 's/tag: .*/tag: ${gitTagName}/g' ./helm/helm-petclinic/environments/values-staging.yaml"                    sh 'git config user.email "jenkins@yourdomain.com"'
+                    sh "sed -i \'s/tag: .*/tag: '+gitTagName+'/g\' ./helm/helm-petclinic/environments/values-staging.yaml"
+                    sh 'git config user.email "jenkins@yourdomain.com"'
                     sh 'git config user.name "Jenkins CI"'
                     sh 'git add ./helm/helm-petclinic/environments/values-staging.yaml'
                     sh "git commit -m '[staging] Release image tag ${gitTagName} for all services'"
