@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKERHUB_REPO = 'phanphuc269/'
         KUBE_NAMESPACE = 'dev'
-        HELM_RELEASE_NAME = 'petclinic'
+        HELM_RELEASE_NAME = 'petclinic-review'
         HOST = 'phanphuc.id.vn'
     }
  
