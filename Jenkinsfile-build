@@ -108,6 +108,8 @@ pipeline {
                             --namespace ${KUBE_NAMESPACE} \\
                             --create-namespace \\
                             -f /var/lib/jenkins/helm/helm-petclinic/values.yaml \\
+                            --set namespace=dev-review \\
+                            --set ingress.enabled=true \\
                             ${env.HELM_SET_ARGUMENTS}
                         """
                     }
