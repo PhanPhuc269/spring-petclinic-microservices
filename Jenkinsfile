@@ -65,7 +65,7 @@ pipeline {
                     }
                 }
             }
-        }               
+        }                
 
         stage('Build & Push Docker Images') {
             when {
