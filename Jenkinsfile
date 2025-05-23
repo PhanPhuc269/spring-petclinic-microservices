@@ -6,7 +6,7 @@ def gitTagName = ''
 pipeline {
     agent any
     environment {
-        DOCKERHUB_REPO = 'phanphuc269/' // Thay bằng DockerHub repo của bạn
+        DOCKERHUB_REPO = 'phanphuc269/' 
     }
 
     stages {
@@ -20,7 +20,7 @@ pipeline {
                     if (gitTagName.startsWith("v")) {
                         isTagBuild = true
                         echo "📦 Tag build detected: ${gitTagName}"
-                        // Khi build theo tag, build toàn bộ service
+
                         globalServiceChanged = [
                             "spring-petclinic-admin-server",
                             "spring-petclinic-api-gateway",
@@ -153,9 +153,9 @@ pipeline {
         success {
             script {
                 if (isTagBuild) {
-                    echo "✅ Successfully built and pushed all services for tag: ${gitTagName}"
+                    echo "#Success: Successfully built and pushed all services for tag: ${gitTagName}"
                 } else {
-                    echo "✅ Build and push completed for changed services: ${globalServiceChanged}"
+                    echo "#Sucess: Build and push completed for changed services: ${globalServiceChanged}"
                 }
             }
         }
