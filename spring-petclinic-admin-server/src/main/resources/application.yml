@@ -3,7 +3,10 @@ spring:
     name: admin-server
   config:
     import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888/}
-
+  boot:
+    admin:
+      ui:
+        public-url: ${SPRING_BOOT_ADMIN_PUBLIC_URL}
 server:
   use-forward-headers: true
   forward-headers-strategy: native
