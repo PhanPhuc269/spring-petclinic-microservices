@@ -63,9 +63,9 @@ pipeline {
                                 echo "   🆔 Latest commit ID for ${servicePath}: ${tag}"
                                 
                                 // Kiểm tra xem image với tag là commit ID có tồn tại không
-                                def imageExists = sh(script: "docker manifest inspect ${DOCKERHUB_REPO}${svc}:${tag} > /dev/null 2>&1 && echo 'true' || echo 'false'", returnStdout: true).trim()
+                                def imageExists = sh(script: "docker manifest inspect ${DOCKERHUB_REPO}${servicePath}:${tag} > /dev/null 2>&1 && echo 'true' || echo 'false'", returnStdout: true).trim()
                                 if (imageExists == 'false') {
-                                    echo "   ⚠️ Image ${DOCKERHUB_REPO}${svc}:${tag} không tồn tại, quay lại dùng tag 'latest'"
+                                    echo "   ⚠️ Image ${DOCKERHUB_REPO}${servicePath}:${tag} không tồn tại, quay lại dùng tag 'latest'"
                                     tag = "latest"
                                 }
                             } else {
