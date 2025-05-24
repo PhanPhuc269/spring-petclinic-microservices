@@ -141,9 +141,10 @@ pipeline {
             withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
                 script {
                     def ingressPort = sh(
-                        script: "kubectl get svc -n ingress-nginx nginx-ingress-ingress-nginx-controller -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}'",
-                        returnStdout: true,
-                        environment: [KUBECONFIG: "${KUBECONFIG_FILE}"]
+                        script: """
+                            KUBECONFIG=\$KUBECONFIG_FILE kubectl get svc -n ingress-nginx nginx-ingress-ingress-nginx-controller -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}'
+                        """,
+                        returnStdout: true
                     ).trim()
                     echo """
                     ✅ Deployment completed successfully!
