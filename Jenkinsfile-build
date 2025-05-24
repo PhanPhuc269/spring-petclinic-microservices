@@ -140,18 +140,19 @@ pipeline {
         success {
             withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
                 script {
-                    sh """
-                    export KUBECONFIG=$KUBECONFIG_FILE
-                    INGRESS_PORT=\$(kubectl get svc -n ingress-nginx nginx-ingress-ingress-nginx-controller -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}')
-                    """
+                    sh "export KUBECONFIG=$KUBECONFIG_FILE"
+                    def ingressPort = sh(
+                        script: "kubectl get svc -n ingress-nginx nginx-ingress-ingress-nginx-controller -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}'",
+                        returnStdout: true
+                    ).trim()
                     echo """
                     ✅ Deployment completed successfully!
                     
                     📝 Access Information:
                     - Namespace: ${KUBE_NAMESPACE}
-                    - API Gateway: http://${KUBE_NAMESPACE}-${HELM_RELEASE_NAME}.${HOST}:32080
-                    - Eureka Dashboard: http://eureka.${KUBE_NAMESPACE}-${HELM_RELEASE_NAME}.${HOST}:32080
-                    - Admin Server: http://admin.${KUBE_NAMESPACE}-${HELM_RELEASE_NAME}.${HOST}:32080
+                    - API Gateway: http://${KUBE_NAMESPACE}-${HELM_RELEASE_NAME}.${HOST}:${ingressPort}
+                    - Eureka Dashboard: http://eureka.${KUBE_NAMESPACE}-${HELM_RELEASE_NAME}.${HOST}:${ingressPort}
+                    - Admin Server: http://admin.${KUBE_NAMESPACE}-${HELM_RELEASE_NAME}.${HOST}:${ingressPort}
                     """
                 }
             }
