@@ -101,7 +101,7 @@ pipeline {
                     }
                     
                     env.HELM_SET_ARGUMENTS = setArguments
-                    echo "🔧 Helm set arguments: ${env.HELM_SET_ARGUMENTS}"
+                    echo "Helm set arguments: ${env.HELM_SET_ARGUMENTS}"
                 }
             }
         }
@@ -112,7 +112,7 @@ pipeline {
                     script {
                         sh """
                         export KUBECONFIG=$KUBECONFIG_FILE
-                        echo "🚀 Deploying to namespace: ${KUBE_NAMESPACE}"
+                        echo "Deploying to namespace: ${KUBE_NAMESPACE}"
 
                         if [ -d /var/lib/jenkins/helm/helm-petclinic ]; then
                             rm -rf /var/lib/jenkins/helm/helm-petclinic
@@ -140,10 +140,10 @@ pipeline {
         success {
             withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
                 script {
-                    sh "export KUBECONFIG=$KUBECONFIG_FILE"
                     def ingressPort = sh(
                         script: "kubectl get svc -n ingress-nginx nginx-ingress-ingress-nginx-controller -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}'",
-                        returnStdout: true
+                        returnStdout: true,
+                        environment: [KUBECONFIG: "${KUBECONFIG_FILE}"]
                     ).trim()
                     echo """
                     ✅ Deployment completed successfully!
