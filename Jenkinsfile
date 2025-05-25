@@ -19,7 +19,7 @@ pipeline {
 
                     if (gitTagName.startsWith("v")) {
                         isTagBuild = true
-                        echo "📦 Tag build detected: ${gitTagName}"
+                        echo "**Tag build detected: ${gitTagName}"
 
                         globalServiceChanged = [
                             "spring-petclinic-admin-server",
@@ -82,11 +82,11 @@ pipeline {
                                 dir("${svc}") {
                                     def tag = isTagBuild ? gitTagName : commitId
                                     def imageTag = "${DOCKERHUB_REPO}${svc}:${tag}"
-                                    echo "🐳 Building image: ${imageTag}"
+                                    echo "#Building image: ${imageTag}"
                                     sh 'export DOCKER_BUILDKIT=1 && ../mvnw clean install -P buildDocker -DskipTests'
 
                                     sh "docker tag springcommunity/${svc}:latest ${imageTag}"
-                                    echo "🚀 Pushing image: ${imageTag}"
+                                    echo "#Pushing image: ${imageTag}"
                                     sh "docker push ${imageTag}"
                                 }
                             }
