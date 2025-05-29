@@ -9,10 +9,11 @@ spring:
         # Use the File System Backend to avoid git pulling. Enable "native" profile in the Config Server.
         native:
           searchLocations: file:///${GIT_REPO}
-spring:
   zipkin:
     base-url: http://zipkin.phanphuc.id.vn
     enabled: true
-  sleuth:
-    sampler:
+
+management:
+  tracing:
+    sampling:
       probability: 1.0

@@ -48,10 +48,11 @@ spring:
     activate:
       on-profile: docker
     import: configserver:http://config-server:8888
-spring:
   zipkin:
     base-url: http://zipkin.phanphuc.id.vn
     enabled: true
-  sleuth:
-    sampler:
+
+management:
+  tracing:
+    sampling:
       probability: 1.0
