@@ -106,7 +106,7 @@ pipeline {
                 script {
                     globalServiceChanged.each { svc ->
                         def key = svc.replace("spring-petclinic-", "").replace("-service", "-service").replace("-gateway", "-gateway")
-                        sh "sed -i '/${key}:\\\$/,/tag:/s/tag: .*/tag: ${commitId}/' ./helm/environments/values-dev.yaml"
+                        sh "sed -i '/${key}:/,/tag:/s/tag: .*/tag: ${commitId}/' ./helm/environments/values-dev.yaml"
                     }
                     withCredentials([usernamePassword(credentialsId: 'PhanPhuc269', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
                         dir('helm') {
