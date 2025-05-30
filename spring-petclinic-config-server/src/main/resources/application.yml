@@ -10,7 +10,7 @@ spring:
         native:
           searchLocations: file:///${GIT_REPO}
   zipkin:
-    base-url: http://zipkin.phanphuc.id.vn
+    base-url: ${ZIPKIN_BASE_URL}
     enabled: true
 
 management:

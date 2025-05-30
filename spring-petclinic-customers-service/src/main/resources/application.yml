@@ -13,7 +13,7 @@ spring:
     import: configserver:http://config-server:8888
 
   zipkin:
-    base-url: http://zipkin.phanphuc.id.vn
+    base-url: ${ZIPKIN_BASE_URL}
     enabled: true
 
 management:
