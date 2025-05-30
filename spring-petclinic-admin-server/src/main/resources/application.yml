@@ -18,11 +18,10 @@ spring:
     activate:
       on-profile: docker
     import: configserver:http://config-server:8888
-  zipkin:
-    base-url: ${ZIPKIN_BASE_URL}
-    enabled: true
 
 management:
   tracing:
     sampling:
       probability: 1.0
+    zipkin:
+      endpoint: ${ZIPKIN_BASE_URL}
