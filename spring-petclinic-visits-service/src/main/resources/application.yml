@@ -15,7 +15,6 @@ management:
   zipkin:
     tracing:
       endpoint: ${ZIPKIN_BASE_URL}
-management:
   endpoints:
     web:
       exposure:
@@ -24,3 +23,4 @@ management:
     export:
       prometheus:
         enabled: true
+
