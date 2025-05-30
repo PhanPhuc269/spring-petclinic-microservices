@@ -23,3 +23,12 @@ management:
   zipkin:
     tracing:
       endpoint: ${ZIPKIN_BASE_URL}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  metrics:
+    export:
+      prometheus:
+        enabled: true
