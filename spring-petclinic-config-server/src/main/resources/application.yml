@@ -10,8 +10,6 @@ spring:
         native:
           searchLocations: file:///${GIT_REPO}
 management:
-  tracing:
-    sampling:
-      probability: 1.0
-    zipkin:
+  zipkin:
+    tracing:
       endpoint: ${ZIPKIN_BASE_URL}

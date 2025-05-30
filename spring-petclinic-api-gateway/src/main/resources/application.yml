@@ -49,8 +49,6 @@ spring:
       on-profile: docker
     import: configserver:http://config-server:8888
 management:
-  tracing:
-    sampling:
-      probability: 1.0
-    zipkin:
+  zipkin:
+    tracing:
       endpoint: ${ZIPKIN_BASE_URL}
