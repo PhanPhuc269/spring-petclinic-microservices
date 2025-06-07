@@ -120,11 +120,10 @@ pipeline {
 
                         git clone https://github.com/PhanPhuc269/helm-petclinic.git /var/lib/jenkins/helm/helm-petclinic
 
-                        kubectl get namespace ${KUBE_NAMESPACE} >/dev/null 2>&1 || \\
-                        kubectl create namespace ${KUBE_NAMESPACE}
                         
                         helm upgrade --install ${HELM_RELEASE_NAME} /var/lib/jenkins/helm/helm-petclinic \\
                             --namespace ${KUBE_NAMESPACE} \\
+                            --create-namespace \\
                             -f /var/lib/jenkins/helm/helm-petclinic/values.yaml \\
                             --set namespace=${KUBE_NAMESPACE} \\
                             --set ingress.enabled=true \\
