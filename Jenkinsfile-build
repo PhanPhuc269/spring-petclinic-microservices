@@ -141,7 +141,7 @@ pipeline {
                 script {
                     def ingressPort = sh(
                         script: """
-                            KUBECONFIG=\$KUBECONFIG_FILE kubectl get svc -n ingress-nginx nginx-ingress-ingress-nginx-controller -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}'
+                            KUBECONFIG=\$KUBECONFIG_FILE kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}'
                         """,
                         returnStdout: true
                     ).trim()
